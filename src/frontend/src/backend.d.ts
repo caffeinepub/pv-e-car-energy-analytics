@@ -38,7 +38,9 @@ export interface TarifPeriode {
     von: string;
     stufen: Array<TarifStufe>;
     owner: Principal;
+    einspeiseStufen: Array<TarifStufe>;
     zuordnungBezug: Array<Array<string>>;
+    bezugStufen: Array<TarifStufe>;
     zuordnungEinspeisung: Array<Array<string>>;
 }
 export interface WattpilotSession {
@@ -51,6 +53,7 @@ export interface WattpilotSession {
 export interface UserProfile {
     principal: Principal;
     registeredAt: Time;
+    waehrung: string;
     pvName: string;
 }
 export enum UserRole {
@@ -83,4 +86,5 @@ export interface backendInterface {
     saveAnalyticsResult(id: string, result: AnalyticsResult): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     updateTarifPeriode(periode: TarifPeriode): Promise<void>;
+    updateWaehrung(waehrung: string): Promise<void>;
 }

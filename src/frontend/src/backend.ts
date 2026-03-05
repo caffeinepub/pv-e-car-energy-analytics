@@ -120,7 +120,9 @@ export interface TarifPeriode {
     von: string;
     stufen: Array<TarifStufe>;
     owner: Principal;
+    einspeiseStufen: Array<TarifStufe>;
     zuordnungBezug: Array<Array<string>>;
+    bezugStufen: Array<TarifStufe>;
     zuordnungEinspeisung: Array<Array<string>>;
 }
 export interface WattpilotSession {
@@ -133,6 +135,7 @@ export interface WattpilotSession {
 export interface UserProfile {
     principal: Principal;
     registeredAt: Time;
+    waehrung: string;
     pvName: string;
 }
 export enum UserRole {
@@ -166,6 +169,7 @@ export interface backendInterface {
     saveAnalyticsResult(id: string, result: AnalyticsResult): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     updateTarifPeriode(periode: TarifPeriode): Promise<void>;
+    updateWaehrung(waehrung: string): Promise<void>;
 }
 import type { AnalyticsResult as _AnalyticsResult, UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -517,6 +521,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.updateTarifPeriode(arg0);
+            return result;
+        }
+    }
+    async updateWaehrung(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateWaehrung(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateWaehrung(arg0);
             return result;
         }
     }

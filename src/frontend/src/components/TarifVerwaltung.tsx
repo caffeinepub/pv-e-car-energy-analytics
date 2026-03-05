@@ -245,34 +245,70 @@ export default function TarifVerwaltung() {
                   </div>
                 </CardHeader>
                 <CardContent className="px-5 pb-4">
-                  <div className="flex flex-wrap gap-4 text-xs font-mono text-muted-foreground">
-                    <span>
-                      <span className="text-foreground font-semibold">
-                        {periode.stufen.length}
-                      </span>{" "}
-                      Tarifstufe{periode.stufen.length !== 1 ? "n" : ""}
-                    </span>
-                    {/* Color swatches */}
-                    <div className="flex items-center gap-1">
-                      {periode.stufen.slice(0, 4).map((stufe) => (
-                        <div
-                          key={stufe.id}
-                          className="w-3 h-3 rounded-sm border border-border/50"
-                          style={{ backgroundColor: stufe.farbe }}
-                          title={`CHF ${stufe.preis.toFixed(4)}/kWh`}
-                        />
-                      ))}
-                    </div>
-                    {/* Tariff summary */}
-                    {periode.stufen.length > 0 && (
-                      <span>
-                        {periode.stufen
-                          .slice(0, 2)
-                          .map((s) => `${s.preis.toFixed(4)} CHF/kWh`)
-                          .join(" / ")}
-                        {periode.stufen.length > 2 ? " …" : ""}
-                      </span>
-                    )}
+                  <div className="flex flex-col gap-2 text-xs font-mono text-muted-foreground">
+                    {/* Bezugstarif summary */}
+                    {(() => {
+                      const bzStufen =
+                        periode.bezugStufen && periode.bezugStufen.length > 0
+                          ? periode.bezugStufen
+                          : periode.stufen;
+                      return bzStufen.length > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground w-24 flex-shrink-0">
+                            Bezug:
+                          </span>
+                          <div className="flex items-center gap-1">
+                            {bzStufen.slice(0, 4).map((stufe) => (
+                              <div
+                                key={stufe.id}
+                                className="w-3 h-3 rounded-sm border border-border/50"
+                                style={{ backgroundColor: stufe.farbe }}
+                                title={`CHF ${stufe.preis.toFixed(4)}/kWh`}
+                              />
+                            ))}
+                          </div>
+                          <span>
+                            {bzStufen
+                              .slice(0, 2)
+                              .map((s) => `${s.preis.toFixed(4)} CHF/kWh`)
+                              .join(" / ")}
+                            {bzStufen.length > 2 ? " …" : ""}
+                          </span>
+                        </div>
+                      ) : null;
+                    })()}
+                    {/* Einspeisetarif summary */}
+                    {(() => {
+                      const einStufen =
+                        periode.einspeiseStufen &&
+                        periode.einspeiseStufen.length > 0
+                          ? periode.einspeiseStufen
+                          : [];
+                      return einStufen.length > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground w-24 flex-shrink-0">
+                            Einspeisung:
+                          </span>
+                          <div className="flex items-center gap-1">
+                            {einStufen.slice(0, 4).map((stufe) => (
+                              <div
+                                key={stufe.id}
+                                className="w-3 h-3 rounded-sm border border-border/50"
+                                style={{ backgroundColor: stufe.farbe }}
+                                title={`CHF ${stufe.preis.toFixed(4)}/kWh`}
+                              />
+                            ))}
+                          </div>
+                          <span>
+                            {einStufen
+                              .slice(0, 2)
+                              .map((s) => `${s.preis.toFixed(4)} CHF/kWh`)
+                              .join(" / ")}
+                            {einStufen.length > 2 ? " …" : ""}
+                          </span>
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                 </CardContent>
               </Card>

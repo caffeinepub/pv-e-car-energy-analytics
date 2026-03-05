@@ -19,7 +19,9 @@ export const TarifPeriode = IDL.Record({
   'von' : IDL.Text,
   'stufen' : IDL.Vec(TarifStufe),
   'owner' : IDL.Principal,
+  'einspeiseStufen' : IDL.Vec(TarifStufe),
   'zuordnungBezug' : IDL.Vec(IDL.Vec(IDL.Text)),
+  'bezugStufen' : IDL.Vec(TarifStufe),
   'zuordnungEinspeisung' : IDL.Vec(IDL.Vec(IDL.Text)),
 });
 export const UserRole = IDL.Variant({
@@ -31,6 +33,7 @@ export const Time = IDL.Int;
 export const UserProfile = IDL.Record({
   'principal' : IDL.Principal,
   'registeredAt' : Time,
+  'waehrung' : IDL.Text,
   'pvName' : IDL.Text,
 });
 export const AnalyticsResult = IDL.Record({
@@ -94,6 +97,7 @@ export const idlService = IDL.Service({
   'saveAnalyticsResult' : IDL.Func([IDL.Text, AnalyticsResult], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'updateTarifPeriode' : IDL.Func([TarifPeriode], [], []),
+  'updateWaehrung' : IDL.Func([IDL.Text], [], []),
 });
 
 export const idlInitArgs = [];
@@ -110,7 +114,9 @@ export const idlFactory = ({ IDL }) => {
     'von' : IDL.Text,
     'stufen' : IDL.Vec(TarifStufe),
     'owner' : IDL.Principal,
+    'einspeiseStufen' : IDL.Vec(TarifStufe),
     'zuordnungBezug' : IDL.Vec(IDL.Vec(IDL.Text)),
+    'bezugStufen' : IDL.Vec(TarifStufe),
     'zuordnungEinspeisung' : IDL.Vec(IDL.Vec(IDL.Text)),
   });
   const UserRole = IDL.Variant({
@@ -122,6 +128,7 @@ export const idlFactory = ({ IDL }) => {
   const UserProfile = IDL.Record({
     'principal' : IDL.Principal,
     'registeredAt' : Time,
+    'waehrung' : IDL.Text,
     'pvName' : IDL.Text,
   });
   const AnalyticsResult = IDL.Record({
@@ -189,6 +196,7 @@ export const idlFactory = ({ IDL }) => {
     'saveAnalyticsResult' : IDL.Func([IDL.Text, AnalyticsResult], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'updateTarifPeriode' : IDL.Func([TarifPeriode], [], []),
+    'updateWaehrung' : IDL.Func([IDL.Text], [], []),
   });
 };
 

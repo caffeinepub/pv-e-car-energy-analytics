@@ -1,10 +1,15 @@
 import type { TarifPeriode } from "../backend.d.ts";
-import type { PVDataRow } from "./analytics";
+import type { PVDataRow, WattpilotDataRow } from "./analytics";
 
 export interface RevenueResult {
-  einspeiseverguetung: number; // CHF earned from feed-in
-  bezugskosten: number; // CHF paid for grid draw
-  nettoErtrag: number; // einspeiseverguetung - bezugskosten
+  einspeiseverguetung: number; // earned from feed-in
+  bezugskosten: number; // paid for grid draw (PV data, includes Wattpilot grid draw)
+  nettoErtrag: number; // einspeiseverguetung - bezugskosten (Wattpilot costs already in bezugskosten)
+  // Wattpilot cost breakdown
+  wattpilotKostenNetz: number; // energieNetz × bezugstarif
+  wattpilotKostenPV: number; // energiePV × einspeisetarif (opportunity cost)
+  wattpilotKostenBatterie: number; // energieBatterie × einspeisetarif (opportunity cost)
+  wattpilotKosten: number; // sum of all three wattpilot costs
 }
 
 // ---------------------------------------------------------------------------
@@ -82,21 +87,62 @@ export function getTarifPreis(
   if (!row) return 0;
   const stufeId = row[hour];
   if (!stufeId) return 0;
-  const stufe = periode.stufen.find((s) => s.id === stufeId);
+  // Use the correct separate stufen array; fall back to legacy combined stufen
+  const stufen =
+    type === "bezug"
+      ? periode.bezugStufen && periode.bezugStufen.length > 0
+        ? periode.bezugStufen
+        : periode.stufen
+      : periode.einspeiseStufen && periode.einspeiseStufen.length > 0
+        ? periode.einspeiseStufen
+        : periode.stufen;
+  const stufe = stufen.find((s) => s.id === stufeId);
   return stufe?.preis ?? 0;
 }
 
 /**
+ * Build a lookup map from normalised date → WattpilotDataRow for fast matching.
+ */
+function buildWattpilotMap(
+  wattpilotRows: WattpilotDataRow[],
+): Map<string, WattpilotDataRow> {
+  const map = new Map<string, WattpilotDataRow>();
+  for (const row of wattpilotRows) {
+    const key = normaliseDatum(row.datum);
+    if (!key) continue;
+    const existing = map.get(key);
+    if (existing) {
+      // Aggregate multiple rows for the same day
+      existing.energiePV += row.energiePV;
+      existing.energieNetz += row.energieNetz;
+      existing.energieBatterie += row.energieBatterie;
+    } else {
+      map.set(key, { ...row });
+    }
+  }
+  return map;
+}
+
+/**
  * Compute revenue for a set of PV rows given a list of tariff periods.
- * For each row: parse the date, find applicable period, use weekday/hour=12 as representative,
- * compute bezugskosten and einspeiseverguetung.
+ * Also computes Wattpilot costs using the same tariff periods.
+ *
+ * - energieNetz × bezugstarif → wattpilotKostenNetz
+ * - energiePV × einspeisetarif → wattpilotKostenPV (opportunity cost)
+ * - energieBatterie × einspeisetarif → wattpilotKostenBatterie (opportunity cost)
  */
 export function computeRevenue(
   pvRows: PVDataRow[],
   perioden: TarifPeriode[],
+  wattpilotRows: WattpilotDataRow[] = [],
 ): RevenueResult {
   let einspeiseverguetung = 0;
   let bezugskosten = 0;
+  let wattpilotKostenNetz = 0;
+  let wattpilotKostenPV = 0;
+  let wattpilotKostenBatterie = 0;
+
+  const wpMap = buildWattpilotMap(wattpilotRows);
 
   for (const row of pvRows) {
     const periode = findTarifPeriode(row.datum, perioden);
@@ -110,12 +156,27 @@ export function computeRevenue(
 
     bezugskosten += row.netzbezug * bezugPreis;
     einspeiseverguetung += row.netzeinspeisung * einspeisPreis;
+
+    // Wattpilot costs for this day
+    const wpRow = wpMap.get(normaliseDatum(row.datum));
+    if (wpRow) {
+      wattpilotKostenNetz += wpRow.energieNetz * bezugPreis;
+      wattpilotKostenPV += wpRow.energiePV * einspeisPreis;
+      wattpilotKostenBatterie += wpRow.energieBatterie * einspeisPreis;
+    }
   }
+
+  const wattpilotKosten =
+    wattpilotKostenNetz + wattpilotKostenPV + wattpilotKostenBatterie;
 
   return {
     einspeiseverguetung: round2(einspeiseverguetung),
     bezugskosten: round2(bezugskosten),
     nettoErtrag: round2(einspeiseverguetung - bezugskosten),
+    wattpilotKostenNetz: round2(wattpilotKostenNetz),
+    wattpilotKostenPV: round2(wattpilotKostenPV),
+    wattpilotKostenBatterie: round2(wattpilotKostenBatterie),
+    wattpilotKosten: round2(wattpilotKosten),
   };
 }
 
@@ -123,8 +184,10 @@ export function computeRevenue(
 export function computeRevenueByDay(
   pvRows: PVDataRow[],
   perioden: TarifPeriode[],
+  wattpilotRows: WattpilotDataRow[] = [],
 ): Array<{ datum: string } & RevenueResult> {
   const byDay = new Map<string, { datum: string } & RevenueResult>();
+  const wpMap = buildWattpilotMap(wattpilotRows);
 
   for (const row of pvRows) {
     const periode = findTarifPeriode(row.datum, perioden);
@@ -135,16 +198,30 @@ export function computeRevenueByDay(
     const bezugPreis = getTarifPreis(periode, weekday, hour, "bezug");
     const einspeisPreis = getTarifPreis(periode, weekday, hour, "einspeisung");
 
+    const wpRow = wpMap.get(normaliseDatum(row.datum));
+    const wpNetz = wpRow ? wpRow.energieNetz * bezugPreis : 0;
+    const wpPV = wpRow ? wpRow.energiePV * einspeisPreis : 0;
+    const wpBatterie = wpRow ? wpRow.energieBatterie * einspeisPreis : 0;
+    const wpTotal = wpNetz + wpPV + wpBatterie;
+
     const existing = byDay.get(row.datum);
     if (existing) {
       existing.bezugskosten += row.netzbezug * bezugPreis;
       existing.einspeiseverguetung += row.netzeinspeisung * einspeisPreis;
+      existing.wattpilotKostenNetz += wpNetz;
+      existing.wattpilotKostenPV += wpPV;
+      existing.wattpilotKostenBatterie += wpBatterie;
+      existing.wattpilotKosten += wpTotal;
     } else {
       byDay.set(row.datum, {
         datum: row.datum,
         bezugskosten: row.netzbezug * bezugPreis,
         einspeiseverguetung: row.netzeinspeisung * einspeisPreis,
         nettoErtrag: 0,
+        wattpilotKostenNetz: wpNetz,
+        wattpilotKostenPV: wpPV,
+        wattpilotKostenBatterie: wpBatterie,
+        wattpilotKosten: wpTotal,
       });
     }
   }
@@ -154,6 +231,10 @@ export function computeRevenueByDay(
       ...d,
       bezugskosten: round2(d.bezugskosten),
       einspeiseverguetung: round2(d.einspeiseverguetung),
+      wattpilotKostenNetz: round2(d.wattpilotKostenNetz),
+      wattpilotKostenPV: round2(d.wattpilotKostenPV),
+      wattpilotKostenBatterie: round2(d.wattpilotKostenBatterie),
+      wattpilotKosten: round2(d.wattpilotKosten),
       nettoErtrag: round2(d.einspeiseverguetung - d.bezugskosten),
     }))
     .sort((a, b) => {
@@ -167,8 +248,10 @@ export function computeRevenueByDay(
 export function computeRevenueByMonth(
   pvRows: PVDataRow[],
   perioden: TarifPeriode[],
+  wattpilotRows: WattpilotDataRow[] = [],
 ): Array<{ monat: string } & RevenueResult> {
   const byMonth = new Map<string, { monat: string } & RevenueResult>();
+  const wpMap = buildWattpilotMap(wattpilotRows);
 
   for (const row of pvRows) {
     const periode = findTarifPeriode(row.datum, perioden);
@@ -183,16 +266,30 @@ export function computeRevenueByMonth(
     const bezugPreis = getTarifPreis(periode, weekday, hour, "bezug");
     const einspeisPreis = getTarifPreis(periode, weekday, hour, "einspeisung");
 
+    const wpRow = wpMap.get(norm);
+    const wpNetz = wpRow ? wpRow.energieNetz * bezugPreis : 0;
+    const wpPV = wpRow ? wpRow.energiePV * einspeisPreis : 0;
+    const wpBatterie = wpRow ? wpRow.energieBatterie * einspeisPreis : 0;
+    const wpTotal = wpNetz + wpPV + wpBatterie;
+
     const existing = byMonth.get(monat);
     if (existing) {
       existing.bezugskosten += row.netzbezug * bezugPreis;
       existing.einspeiseverguetung += row.netzeinspeisung * einspeisPreis;
+      existing.wattpilotKostenNetz += wpNetz;
+      existing.wattpilotKostenPV += wpPV;
+      existing.wattpilotKostenBatterie += wpBatterie;
+      existing.wattpilotKosten += wpTotal;
     } else {
       byMonth.set(monat, {
         monat,
         bezugskosten: row.netzbezug * bezugPreis,
         einspeiseverguetung: row.netzeinspeisung * einspeisPreis,
         nettoErtrag: 0,
+        wattpilotKostenNetz: wpNetz,
+        wattpilotKostenPV: wpPV,
+        wattpilotKostenBatterie: wpBatterie,
+        wattpilotKosten: wpTotal,
       });
     }
   }
@@ -202,6 +299,10 @@ export function computeRevenueByMonth(
       ...d,
       bezugskosten: round2(d.bezugskosten),
       einspeiseverguetung: round2(d.einspeiseverguetung),
+      wattpilotKostenNetz: round2(d.wattpilotKostenNetz),
+      wattpilotKostenPV: round2(d.wattpilotKostenPV),
+      wattpilotKostenBatterie: round2(d.wattpilotKostenBatterie),
+      wattpilotKosten: round2(d.wattpilotKosten),
       nettoErtrag: round2(d.einspeiseverguetung - d.bezugskosten),
     }))
     .sort((a, b) => a.monat.localeCompare(b.monat));
@@ -211,8 +312,10 @@ export function computeRevenueByMonth(
 export function computeRevenueByYear(
   pvRows: PVDataRow[],
   perioden: TarifPeriode[],
+  wattpilotRows: WattpilotDataRow[] = [],
 ): Array<{ jahr: string } & RevenueResult> {
   const byYear = new Map<string, { jahr: string } & RevenueResult>();
+  const wpMap = buildWattpilotMap(wattpilotRows);
 
   for (const row of pvRows) {
     const periode = findTarifPeriode(row.datum, perioden);
@@ -227,16 +330,30 @@ export function computeRevenueByYear(
     const bezugPreis = getTarifPreis(periode, weekday, hour, "bezug");
     const einspeisPreis = getTarifPreis(periode, weekday, hour, "einspeisung");
 
+    const wpRow = wpMap.get(norm);
+    const wpNetz = wpRow ? wpRow.energieNetz * bezugPreis : 0;
+    const wpPV = wpRow ? wpRow.energiePV * einspeisPreis : 0;
+    const wpBatterie = wpRow ? wpRow.energieBatterie * einspeisPreis : 0;
+    const wpTotal = wpNetz + wpPV + wpBatterie;
+
     const existing = byYear.get(jahr);
     if (existing) {
       existing.bezugskosten += row.netzbezug * bezugPreis;
       existing.einspeiseverguetung += row.netzeinspeisung * einspeisPreis;
+      existing.wattpilotKostenNetz += wpNetz;
+      existing.wattpilotKostenPV += wpPV;
+      existing.wattpilotKostenBatterie += wpBatterie;
+      existing.wattpilotKosten += wpTotal;
     } else {
       byYear.set(jahr, {
         jahr,
         bezugskosten: row.netzbezug * bezugPreis,
         einspeiseverguetung: row.netzeinspeisung * einspeisPreis,
         nettoErtrag: 0,
+        wattpilotKostenNetz: wpNetz,
+        wattpilotKostenPV: wpPV,
+        wattpilotKostenBatterie: wpBatterie,
+        wattpilotKosten: wpTotal,
       });
     }
   }
@@ -246,6 +363,10 @@ export function computeRevenueByYear(
       ...d,
       bezugskosten: round2(d.bezugskosten),
       einspeiseverguetung: round2(d.einspeiseverguetung),
+      wattpilotKostenNetz: round2(d.wattpilotKostenNetz),
+      wattpilotKostenPV: round2(d.wattpilotKostenPV),
+      wattpilotKostenBatterie: round2(d.wattpilotKostenBatterie),
+      wattpilotKosten: round2(d.wattpilotKosten),
       nettoErtrag: round2(d.einspeiseverguetung - d.bezugskosten),
     }))
     .sort((a, b) => a.jahr.localeCompare(b.jahr));

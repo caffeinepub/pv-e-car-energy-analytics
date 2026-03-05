@@ -39,7 +39,7 @@ export default function MetricCard({
   description,
   icon,
   accentColor = "default",
-  large = false,
+  large: _large = false,
   className,
   dataOcid,
 }: MetricCardProps) {
@@ -52,7 +52,7 @@ export default function MetricCard({
       transition={{ duration: 0.3 }}
       data-ocid={dataOcid}
       className={cn(
-        "relative bg-card border border-border rounded-lg p-4 overflow-hidden",
+        "relative bg-card border border-border rounded-lg p-4 overflow-hidden min-h-[120px] h-full flex flex-col justify-between",
         borderMap[accentColor],
         className,
       )}
@@ -73,7 +73,7 @@ export default function MetricCard({
             <span
               className={cn(
                 "metric-value font-mono font-bold leading-none",
-                large ? "text-3xl" : "text-xl",
+                "text-2xl",
                 "text-foreground",
               )}
               style={{ color: accent }}

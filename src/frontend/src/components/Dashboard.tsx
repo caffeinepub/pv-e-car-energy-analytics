@@ -6,6 +6,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Car,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Database,
@@ -32,9 +33,9 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import type { AnalyticsResult, TarifPeriode } from "../backend.d.ts";
+import { useCurrency } from "../contexts/CurrencyContext";
 import { useActor } from "../hooks/useActor";
 import {
-  type DailyEnergy,
   type PVDataRow,
   type WattpilotDataRow,
   aggregateByDay,
@@ -103,6 +104,7 @@ function formatKwh(val: number, name: string) {
 
 export default function Dashboard() {
   const { actor, isFetching: actorFetching } = useActor();
+  const { currency } = useCurrency();
 
   // Raw stored data
   const [allPVRows, setAllPVRows] = useState<PVDataRow[]>([]);
@@ -116,6 +118,17 @@ export default function Dashboard() {
   const [selectedDay, setSelectedDay] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [selectedYear, setSelectedYear] = useState<string>("");
+
+  // Collapsible group state
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    new Set(),
+  );
+  const toggleGroup = (key: string) =>
+    setCollapsedGroups((prev) => {
+      const s = new Set(prev);
+      s.has(key) ? s.delete(key) : s.add(key);
+      return s;
+    });
 
   // ---------------------------------------------------------------------------
   // Data loading
@@ -220,8 +233,8 @@ export default function Dashboard() {
   const revenue = useMemo(() => {
     if (filteredPVRows.length === 0 || allTarifPerioden.length === 0)
       return null;
-    return computeRevenue(filteredPVRows, allTarifPerioden);
-  }, [filteredPVRows, allTarifPerioden]);
+    return computeRevenue(filteredPVRows, allTarifPerioden, filteredWPRows);
+  }, [filteredPVRows, allTarifPerioden, filteredWPRows]);
 
   // ---------------------------------------------------------------------------
   // Chart data for the current period
@@ -697,116 +710,230 @@ export default function Dashboard() {
         <>
           {/* KPI Cards */}
           <section data-ocid="dashboard.section">
-            <div className="flex items-center gap-2 mb-4">
+            <button
+              type="button"
+              data-ocid="dashboard.kennzahlen.toggle"
+              onClick={() => toggleGroup("kennzahlen")}
+              className="flex items-center gap-2 mb-4 w-full text-left group"
+            >
               <div className="w-1 h-4 rounded-full bg-primary" />
-              <h2 className="text-sm font-mono font-semibold text-muted-foreground uppercase tracking-wider">
+              <h2 className="text-sm font-mono font-semibold text-muted-foreground uppercase tracking-wider flex-1">
                 Kennzahlen
               </h2>
-            </div>
+              <ChevronDown
+                className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${collapsedGroups.has("kennzahlen") ? "-rotate-90" : ""}`}
+              />
+            </button>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              <MetricCard
-                label="Autarkiegrad"
-                value={analytics.autarkyRate.toFixed(1)}
-                unit="%"
-                description="Anteil des Eigenverbrauchs am Gesamtbedarf"
-                icon={<TrendingUp className="w-4 h-4" />}
-                accentColor="pv"
-                large
-                dataOcid="dashboard.card"
-              />
-              <MetricCard
-                label="Eigenverbrauchsquote"
-                value={analytics.selfConsumptionRate.toFixed(1)}
-                unit="%"
-                description="Anteil der PV-Erzeugung, die selbst verbraucht wird"
-                icon={<Activity className="w-4 h-4" />}
-                accentColor="self"
-                large
-                dataOcid="dashboard.card"
-              />
-              <MetricCard
-                label="PV-Anteil E-Auto"
-                value={analytics.pvShareOfEVCharging.toFixed(1)}
-                unit="%"
-                description="Anteil von PV-Strom beim Laden"
-                icon={<Car className="w-4 h-4" />}
-                accentColor="ev"
-                large
-                dataOcid="dashboard.card"
-              />
-              <MetricCard
-                label="PV-Erzeugung"
-                value={analytics.totalPVGeneration.toFixed(1)}
-                unit="kWh"
-                icon={<Zap className="w-4 h-4" />}
-                accentColor="pv"
-                dataOcid="dashboard.card"
-              />
-              <MetricCard
-                label="Netzbezug"
-                value={analytics.totalGridDraw.toFixed(1)}
-                unit="kWh"
-                icon={<ArrowDownLeft className="w-4 h-4" />}
-                accentColor="grid-draw"
-                dataOcid="dashboard.card"
-              />
-              <MetricCard
-                label="Einspeisung"
-                value={analytics.totalGridFeedIn.toFixed(1)}
-                unit="kWh"
-                icon={<ArrowUpRight className="w-4 h-4" />}
-                accentColor="grid-feed"
-                dataOcid="dashboard.card"
-              />
-              <MetricCard
-                label="E-Auto geladen"
-                value={analytics.totalEVCharging.toFixed(1)}
-                unit="kWh"
-                icon={<Car className="w-4 h-4" />}
-                accentColor="ev"
-                dataOcid="dashboard.card"
-              />
-            </div>
-
-            {/* Revenue Cards (only if tariff periods are available) */}
-            {revenue !== null && (
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-3 rounded-full bg-primary/60" />
-                  <p className="text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wider">
-                    Erträge &amp; Kosten
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <AnimatePresence initial={false}>
+              {!collapsedGroups.has("kennzahlen") && (
+                <motion.div
+                  key="kennzahlen-content"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.25 }}
+                  style={{ overflow: "hidden" }}
+                  className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 items-stretch"
+                >
                   <MetricCard
-                    label="Einspeisevergütung"
-                    value={revenue.einspeiseverguetung.toFixed(2)}
-                    unit="CHF"
-                    description="Vergütung für eingespeisten PV-Strom"
-                    icon={<ArrowUpRight className="w-4 h-4" />}
-                    accentColor="grid-feed"
+                    label="Autarkiegrad"
+                    value={analytics.autarkyRate.toFixed(1)}
+                    unit="%"
+                    description="Anteil des Eigenverbrauchs am Gesamtbedarf"
+                    icon={<TrendingUp className="w-4 h-4" />}
+                    accentColor="pv"
+                    large
                     dataOcid="dashboard.card"
                   />
                   <MetricCard
-                    label="Bezugskosten"
-                    value={revenue.bezugskosten.toFixed(2)}
-                    unit="CHF"
-                    description="Kosten für Netzbezug"
+                    label="Eigenverbrauchsquote"
+                    value={analytics.selfConsumptionRate.toFixed(1)}
+                    unit="%"
+                    description="Anteil der PV-Erzeugung, die selbst verbraucht wird"
+                    icon={<Activity className="w-4 h-4" />}
+                    accentColor="self"
+                    large
+                    dataOcid="dashboard.card"
+                  />
+                  <MetricCard
+                    label="PV-Anteil E-Auto"
+                    value={analytics.pvShareOfEVCharging.toFixed(1)}
+                    unit="%"
+                    description="Anteil von PV-Strom beim Laden"
+                    icon={<Car className="w-4 h-4" />}
+                    accentColor="ev"
+                    large
+                    dataOcid="dashboard.card"
+                  />
+                  <MetricCard
+                    label="PV-Erzeugung"
+                    value={analytics.totalPVGeneration.toFixed(1)}
+                    unit="kWh"
+                    icon={<Zap className="w-4 h-4" />}
+                    accentColor="pv"
+                    dataOcid="dashboard.card"
+                  />
+                  <MetricCard
+                    label="Netzbezug"
+                    value={analytics.totalGridDraw.toFixed(1)}
+                    unit="kWh"
                     icon={<ArrowDownLeft className="w-4 h-4" />}
                     accentColor="grid-draw"
                     dataOcid="dashboard.card"
                   />
                   <MetricCard
-                    label="Netto-Ertrag"
-                    value={revenue.nettoErtrag.toFixed(2)}
-                    unit="CHF"
-                    description="Einspeisevergütung minus Bezugskosten"
-                    icon={<TrendingUp className="w-4 h-4" />}
-                    accentColor={revenue.nettoErtrag >= 0 ? "pv" : "grid-draw"}
-                    large
+                    label="Einspeisung"
+                    value={analytics.totalGridFeedIn.toFixed(1)}
+                    unit="kWh"
+                    icon={<ArrowUpRight className="w-4 h-4" />}
+                    accentColor="grid-feed"
                     dataOcid="dashboard.card"
                   />
+                  <MetricCard
+                    label="E-Auto geladen"
+                    value={analytics.totalEVCharging.toFixed(1)}
+                    unit="kWh"
+                    icon={<Car className="w-4 h-4" />}
+                    accentColor="ev"
+                    dataOcid="dashboard.card"
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Revenue Cards (only if tariff periods are available) */}
+            {revenue !== null && (
+              <div className="mt-4 space-y-4">
+                {/* PV Revenue summary */}
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    data-ocid="dashboard.ertraege.toggle"
+                    onClick={() => toggleGroup("ertraege")}
+                    className="flex items-center gap-2 w-full text-left group"
+                  >
+                    <div className="w-1 h-3 rounded-full bg-primary/60" />
+                    <p className="text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wider flex-1">
+                      Erträge &amp; Kosten
+                    </p>
+                    <ChevronDown
+                      className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${collapsedGroups.has("ertraege") ? "-rotate-90" : ""}`}
+                    />
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {!collapsedGroups.has("ertraege") && (
+                      <motion.div
+                        key="ertraege-content"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.25 }}
+                        style={{ overflow: "hidden" }}
+                        className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-stretch"
+                      >
+                        <MetricCard
+                          label="Einspeisevergütung"
+                          value={revenue.einspeiseverguetung.toFixed(2)}
+                          unit={currency}
+                          description="Vergütung für eingespeisten PV-Strom"
+                          icon={<ArrowUpRight className="w-4 h-4" />}
+                          accentColor="grid-feed"
+                          dataOcid="dashboard.card"
+                        />
+                        <MetricCard
+                          label="Bezugskosten"
+                          value={revenue.bezugskosten.toFixed(2)}
+                          unit={currency}
+                          description="Kosten für Netzbezug (PV-Daten)"
+                          icon={<ArrowDownLeft className="w-4 h-4" />}
+                          accentColor="grid-draw"
+                          dataOcid="dashboard.card"
+                        />
+                        <MetricCard
+                          label="Netto-Ertrag"
+                          value={revenue.nettoErtrag.toFixed(2)}
+                          unit={currency}
+                          description="Einspeisung − Bezug"
+                          icon={<TrendingUp className="w-4 h-4" />}
+                          accentColor={
+                            revenue.nettoErtrag >= 0 ? "pv" : "grid-draw"
+                          }
+                          large
+                          dataOcid="dashboard.card"
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Wattpilot cost breakdown */}
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    data-ocid="dashboard.wattpilot.toggle"
+                    onClick={() => toggleGroup("wattpilot")}
+                    className="flex items-center gap-2 w-full text-left group"
+                  >
+                    <div className="w-1 h-3 rounded-full bg-primary/40" />
+                    <p className="text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wider flex-1">
+                      Wattpilot Ladekosten
+                    </p>
+                    <ChevronDown
+                      className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${collapsedGroups.has("wattpilot") ? "-rotate-90" : ""}`}
+                    />
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {!collapsedGroups.has("wattpilot") && (
+                      <motion.div
+                        key="wattpilot-content"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.25 }}
+                        style={{ overflow: "hidden" }}
+                        className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-stretch"
+                      >
+                        <MetricCard
+                          label="Wattpilot Netz"
+                          value={revenue.wattpilotKostenNetz.toFixed(2)}
+                          unit={currency}
+                          description="Energie vom Netz × Bezugstarif"
+                          icon={<ArrowDownLeft className="w-4 h-4" />}
+                          accentColor="grid-draw"
+                          dataOcid="dashboard.card"
+                        />
+                        <MetricCard
+                          label="Wattpilot PV"
+                          value={revenue.wattpilotKostenPV.toFixed(2)}
+                          unit={currency}
+                          description="PV-Energie an E-Auto × Einspeisetarif"
+                          icon={<Zap className="w-4 h-4" />}
+                          accentColor="pv"
+                          dataOcid="dashboard.card"
+                        />
+                        <MetricCard
+                          label="Wattpilot Batterie"
+                          value={revenue.wattpilotKostenBatterie.toFixed(2)}
+                          unit={currency}
+                          description="Batterie-Energie an E-Auto × Einspeisetarif"
+                          icon={<Car className="w-4 h-4" />}
+                          accentColor="ev"
+                          dataOcid="dashboard.card"
+                        />
+                        <MetricCard
+                          label="Wattpilot Gesamt"
+                          value={revenue.wattpilotKosten.toFixed(2)}
+                          unit={currency}
+                          description="Gesamtkosten Wattpilot-Ladung"
+                          icon={<Car className="w-4 h-4" />}
+                          accentColor="ev"
+                          large
+                          dataOcid="dashboard.card"
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
             )}

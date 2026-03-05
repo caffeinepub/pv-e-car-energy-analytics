@@ -9,9 +9,9 @@ import Order "mo:core/Order";
 
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
-import Migration "migration";
 
-(with migration = Migration.run)
+
+
 actor {
   // Initialize the access control system
   let accessControlState = AccessControl.initState();
@@ -21,6 +21,7 @@ actor {
     principal : Principal;
     pvName : Text;
     registeredAt : Time.Time;
+    waehrung : Text;
   };
 
   module PVSession {
@@ -94,7 +95,6 @@ actor {
     };
   };
 
-  // New types for Tariff Periods
   type TarifStufe = {
     id : Text;
     preis : Float;
@@ -106,6 +106,8 @@ actor {
     von : Text;
     bis : Text;
     stufen : [TarifStufe];
+    bezugStufen : [TarifStufe];
+    einspeiseStufen : [TarifStufe];
     zuordnungBezug : [[Text]];
     zuordnungEinspeisung : [[Text]];
     owner : Principal;
@@ -139,6 +141,18 @@ actor {
     users.add(caller, profile);
   };
 
+  // New function to update waehrung
+  public shared ({ caller }) func updateWaehrung(waehrung : Text) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can update waehrung");
+    };
+    let profile = switch (users.get(caller)) {
+      case (null) { Runtime.trap("User not registered") };
+      case (?p) { p };
+    };
+    users.add(caller, { profile with waehrung });
+  };
+
   // User registration and profile access
   public shared ({ caller }) func registerUser(pvName : Text) : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
@@ -151,6 +165,7 @@ actor {
       principal = caller;
       pvName;
       registeredAt = Time.now();
+      waehrung = "CHF";
     };
     users.add(caller, profile);
   };
@@ -388,4 +403,3 @@ actor {
     users.values().toArray();
   };
 };
-

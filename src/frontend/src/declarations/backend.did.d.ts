@@ -35,7 +35,9 @@ export interface TarifPeriode {
   'von' : string,
   'stufen' : Array<TarifStufe>,
   'owner' : Principal,
+  'einspeiseStufen' : Array<TarifStufe>,
   'zuordnungBezug' : Array<Array<string>>,
+  'bezugStufen' : Array<TarifStufe>,
   'zuordnungEinspeisung' : Array<Array<string>>,
 }
 export interface TarifStufe {
@@ -47,6 +49,7 @@ export type Time = bigint;
 export interface UserProfile {
   'principal' : Principal,
   'registeredAt' : Time,
+  'waehrung' : string,
   'pvName' : string,
 }
 export type UserRole = { 'admin' : null } |
@@ -85,6 +88,7 @@ export interface _SERVICE {
   'saveAnalyticsResult' : ActorMethod<[string, AnalyticsResult], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'updateTarifPeriode' : ActorMethod<[TarifPeriode], undefined>,
+  'updateWaehrung' : ActorMethod<[string], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

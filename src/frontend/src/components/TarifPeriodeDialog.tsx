@@ -13,6 +13,7 @@ import { Principal } from "@icp-sdk/core/principal";
 import { Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TarifPeriode, TarifStufe } from "../backend.d.ts";
+import { useCurrency } from "../contexts/CurrencyContext";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -169,6 +170,7 @@ interface StufenEditorProps {
   title: string;
   stufen: TarifStufe[];
   grid: string[][];
+  currency: string;
   onStufenChange: (stufen: TarifStufe[]) => void;
   onGridChange: (grid: string[][]) => void;
 }
@@ -177,6 +179,7 @@ function StufenEditor({
   title,
   stufen,
   grid,
+  currency,
   onStufenChange,
   onGridChange,
 }: StufenEditorProps) {
@@ -241,7 +244,7 @@ function StufenEditor({
                 className="h-8 text-sm font-mono bg-secondary border-border w-28"
               />
               <span className="text-xs font-mono text-muted-foreground whitespace-nowrap">
-                CHF/kWh
+                {currency}/kWh
               </span>
             </div>
             {/* Delete icon (hidden for first stufe) */}
@@ -296,6 +299,7 @@ export default function TarifPeriodeDialog({
   initial,
 }: Props) {
   const isEdit = !!initial;
+  const { currency } = useCurrency();
 
   // Form state
   const [von, setVon] = useState("");
@@ -314,21 +318,29 @@ export default function TarifPeriodeDialog({
     if (initial) {
       setVon(initial.von);
       setBis(initial.bis);
-      setBezugStufen(
-        initial.stufen.length > 0 ? initial.stufen : [makeDefaultStufe(0)],
-      );
-      setEinspeiseStufen(
-        initial.stufen.length > 0 ? initial.stufen : [makeDefaultStufe(0)],
-      );
+      // Use separate bezugStufen / einspeiseStufen if available,
+      // fall back to the legacy combined stufen array for old data
+      const bzStufen =
+        initial.bezugStufen && initial.bezugStufen.length > 0
+          ? initial.bezugStufen
+          : initial.stufen.length > 0
+            ? initial.stufen
+            : [makeDefaultStufe(0)];
+      const einStufen =
+        initial.einspeiseStufen && initial.einspeiseStufen.length > 0
+          ? initial.einspeiseStufen
+          : [makeDefaultStufe(0)];
+      setBezugStufen(bzStufen);
+      setEinspeiseStufen(einStufen);
       setZuordnungBezug(
         initial.zuordnungBezug.length === 7
           ? initial.zuordnungBezug
-          : makeDefaultGrid(initial.stufen[0]?.id ?? ""),
+          : makeDefaultGrid(bzStufen[0]?.id ?? ""),
       );
       setZuordnungEinspeisung(
         initial.zuordnungEinspeisung.length === 7
           ? initial.zuordnungEinspeisung
-          : makeDefaultGrid(initial.stufen[0]?.id ?? ""),
+          : makeDefaultGrid(einStufen[0]?.id ?? ""),
       );
     } else {
       const s0Bezug = makeDefaultStufe(0);
@@ -367,17 +379,14 @@ export default function TarifPeriodeDialog({
   const handleSave = () => {
     if (!validate()) return;
 
-    // Combine bezug + einspeis stufen (deduplicated by id)
-    const allStufenMap = new Map<string, TarifStufe>();
-    for (const s of bezugStufen) allStufenMap.set(s.id, s);
-    for (const s of einspeiseStufen) allStufenMap.set(s.id, s);
-    const allStuden = Array.from(allStufenMap.values());
-
     const periode: TarifPeriode = {
       id: isEdit && initial ? initial.id : crypto.randomUUID(),
       von: von.trim(),
       bis: bis.trim(),
-      stufen: allStuden,
+      // Keep legacy stufen as empty array (no longer used for new data)
+      stufen: [],
+      bezugStufen,
+      einspeiseStufen,
       owner:
         isEdit && initial ? initial.owner : Principal.fromText("2vxsx-fae"),
       zuordnungBezug,
@@ -390,16 +399,16 @@ export default function TarifPeriodeDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
         data-ocid="tarif.dialog"
-        className="max-w-3xl bg-card border-border text-foreground font-mono p-0 gap-0 overflow-hidden"
-        style={{ maxHeight: "90vh" }}
+        className="max-w-3xl bg-card border-border text-foreground font-mono p-0 gap-0 flex flex-col"
+        style={{ maxHeight: "92vh", height: "92vh" }}
       >
-        <DialogHeader className="px-6 pt-5 pb-0 flex-shrink-0">
+        <DialogHeader className="px-6 pt-5 pb-3 flex-shrink-0 border-b border-border">
           <DialogTitle className="font-display text-lg text-foreground">
             Tarifperiode {isEdit ? "bearbeiten" : "erstellen"}
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 overflow-y-auto">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="px-6 py-4 space-y-5">
             {/* Von / Bis */}
             <div className="flex items-start gap-4">
@@ -459,6 +468,7 @@ export default function TarifPeriodeDialog({
                 title="Bezugstarif"
                 stufen={bezugStufen}
                 grid={zuordnungBezug}
+                currency={currency}
                 onStufenChange={(newStufen) => {
                   setBezugStufen(newStufen);
                   // If first stufe changed id, rebuild grid
@@ -480,6 +490,7 @@ export default function TarifPeriodeDialog({
                 title="Einspeisetarif"
                 stufen={einspeiseStufen}
                 grid={zuordnungEinspeisung}
+                currency={currency}
                 onStufenChange={(newStufen) => {
                   setEinspeiseStufen(newStufen);
                   if (newStufen.length === 1 && einspeiseStufen.length === 1) {
