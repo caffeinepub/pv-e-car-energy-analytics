@@ -5,6 +5,8 @@ export interface RevenueResult {
   einspeiseverguetung: number; // earned from feed-in
   bezugskosten: number; // paid for grid draw (PV data, includes Wattpilot grid draw)
   nettoErtrag: number; // einspeiseverguetung - bezugskosten (Wattpilot costs already in bezugskosten)
+  ersparnis: number; // eigenverbrauch (kWh) × einspeisetarif → saved costs
+  ertrag: number; // einspeiseverguetung + ersparnis
   // Wattpilot cost breakdown
   wattpilotKostenNetz: number; // energieNetz × bezugstarif
   wattpilotKostenPV: number; // energiePV × einspeisetarif (opportunity cost)
@@ -138,6 +140,7 @@ export function computeRevenue(
 ): RevenueResult {
   let einspeiseverguetung = 0;
   let bezugskosten = 0;
+  let ersparnis = 0;
   let wattpilotKostenNetz = 0;
   let wattpilotKostenPV = 0;
   let wattpilotKostenBatterie = 0;
@@ -156,6 +159,8 @@ export function computeRevenue(
 
     bezugskosten += row.netzbezug * bezugPreis;
     einspeiseverguetung += row.netzeinspeisung * einspeisPreis;
+    // Ersparnis = direkt verbrauchte Energie (Eigenverbrauch in kWh) × Einspeisetarif
+    ersparnis += row.eigenverbrauch * einspeisPreis;
 
     // Wattpilot costs for this day
     const wpRow = wpMap.get(normaliseDatum(row.datum));
@@ -168,11 +173,14 @@ export function computeRevenue(
 
   const wattpilotKosten =
     wattpilotKostenNetz + wattpilotKostenPV + wattpilotKostenBatterie;
+  const ertrag = einspeiseverguetung + ersparnis;
 
   return {
     einspeiseverguetung: round2(einspeiseverguetung),
     bezugskosten: round2(bezugskosten),
     nettoErtrag: round2(einspeiseverguetung - bezugskosten),
+    ersparnis: round2(ersparnis),
+    ertrag: round2(ertrag),
     wattpilotKostenNetz: round2(wattpilotKostenNetz),
     wattpilotKostenPV: round2(wattpilotKostenPV),
     wattpilotKostenBatterie: round2(wattpilotKostenBatterie),
@@ -203,11 +211,13 @@ export function computeRevenueByDay(
     const wpPV = wpRow ? wpRow.energiePV * einspeisPreis : 0;
     const wpBatterie = wpRow ? wpRow.energieBatterie * einspeisPreis : 0;
     const wpTotal = wpNetz + wpPV + wpBatterie;
+    const rowErsparnis = row.eigenverbrauch * einspeisPreis;
 
     const existing = byDay.get(row.datum);
     if (existing) {
       existing.bezugskosten += row.netzbezug * bezugPreis;
       existing.einspeiseverguetung += row.netzeinspeisung * einspeisPreis;
+      existing.ersparnis += rowErsparnis;
       existing.wattpilotKostenNetz += wpNetz;
       existing.wattpilotKostenPV += wpPV;
       existing.wattpilotKostenBatterie += wpBatterie;
@@ -218,6 +228,8 @@ export function computeRevenueByDay(
         bezugskosten: row.netzbezug * bezugPreis,
         einspeiseverguetung: row.netzeinspeisung * einspeisPreis,
         nettoErtrag: 0,
+        ersparnis: rowErsparnis,
+        ertrag: 0,
         wattpilotKostenNetz: wpNetz,
         wattpilotKostenPV: wpPV,
         wattpilotKostenBatterie: wpBatterie,
@@ -231,6 +243,8 @@ export function computeRevenueByDay(
       ...d,
       bezugskosten: round2(d.bezugskosten),
       einspeiseverguetung: round2(d.einspeiseverguetung),
+      ersparnis: round2(d.ersparnis),
+      ertrag: round2(d.einspeiseverguetung + d.ersparnis),
       wattpilotKostenNetz: round2(d.wattpilotKostenNetz),
       wattpilotKostenPV: round2(d.wattpilotKostenPV),
       wattpilotKostenBatterie: round2(d.wattpilotKostenBatterie),
@@ -272,10 +286,13 @@ export function computeRevenueByMonth(
     const wpBatterie = wpRow ? wpRow.energieBatterie * einspeisPreis : 0;
     const wpTotal = wpNetz + wpPV + wpBatterie;
 
+    const rowErsparnis = row.eigenverbrauch * einspeisPreis;
+
     const existing = byMonth.get(monat);
     if (existing) {
       existing.bezugskosten += row.netzbezug * bezugPreis;
       existing.einspeiseverguetung += row.netzeinspeisung * einspeisPreis;
+      existing.ersparnis += rowErsparnis;
       existing.wattpilotKostenNetz += wpNetz;
       existing.wattpilotKostenPV += wpPV;
       existing.wattpilotKostenBatterie += wpBatterie;
@@ -286,6 +303,8 @@ export function computeRevenueByMonth(
         bezugskosten: row.netzbezug * bezugPreis,
         einspeiseverguetung: row.netzeinspeisung * einspeisPreis,
         nettoErtrag: 0,
+        ersparnis: rowErsparnis,
+        ertrag: 0,
         wattpilotKostenNetz: wpNetz,
         wattpilotKostenPV: wpPV,
         wattpilotKostenBatterie: wpBatterie,
@@ -299,6 +318,8 @@ export function computeRevenueByMonth(
       ...d,
       bezugskosten: round2(d.bezugskosten),
       einspeiseverguetung: round2(d.einspeiseverguetung),
+      ersparnis: round2(d.ersparnis),
+      ertrag: round2(d.einspeiseverguetung + d.ersparnis),
       wattpilotKostenNetz: round2(d.wattpilotKostenNetz),
       wattpilotKostenPV: round2(d.wattpilotKostenPV),
       wattpilotKostenBatterie: round2(d.wattpilotKostenBatterie),
@@ -336,10 +357,13 @@ export function computeRevenueByYear(
     const wpBatterie = wpRow ? wpRow.energieBatterie * einspeisPreis : 0;
     const wpTotal = wpNetz + wpPV + wpBatterie;
 
+    const rowErsparnis = row.eigenverbrauch * einspeisPreis;
+
     const existing = byYear.get(jahr);
     if (existing) {
       existing.bezugskosten += row.netzbezug * bezugPreis;
       existing.einspeiseverguetung += row.netzeinspeisung * einspeisPreis;
+      existing.ersparnis += rowErsparnis;
       existing.wattpilotKostenNetz += wpNetz;
       existing.wattpilotKostenPV += wpPV;
       existing.wattpilotKostenBatterie += wpBatterie;
@@ -350,6 +374,8 @@ export function computeRevenueByYear(
         bezugskosten: row.netzbezug * bezugPreis,
         einspeiseverguetung: row.netzeinspeisung * einspeisPreis,
         nettoErtrag: 0,
+        ersparnis: rowErsparnis,
+        ertrag: 0,
         wattpilotKostenNetz: wpNetz,
         wattpilotKostenPV: wpPV,
         wattpilotKostenBatterie: wpBatterie,
@@ -363,6 +389,8 @@ export function computeRevenueByYear(
       ...d,
       bezugskosten: round2(d.bezugskosten),
       einspeiseverguetung: round2(d.einspeiseverguetung),
+      ersparnis: round2(d.ersparnis),
+      ertrag: round2(d.einspeiseverguetung + d.ersparnis),
       wattpilotKostenNetz: round2(d.wattpilotKostenNetz),
       wattpilotKostenPV: round2(d.wattpilotKostenPV),
       wattpilotKostenBatterie: round2(d.wattpilotKostenBatterie),

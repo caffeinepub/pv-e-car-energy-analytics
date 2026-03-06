@@ -842,6 +842,25 @@ export default function Dashboard() {
                           dataOcid="dashboard.card"
                         />
                         <MetricCard
+                          label="Ersparnis"
+                          value={revenue.ersparnis.toFixed(2)}
+                          unit={currency}
+                          description="Direkt verbrauchte Energie × Einspeisetarif"
+                          icon={<Zap className="w-4 h-4" />}
+                          accentColor="pv"
+                          dataOcid="dashboard.card"
+                        />
+                        <MetricCard
+                          label="Ertrag"
+                          value={revenue.ertrag.toFixed(2)}
+                          unit={currency}
+                          description="Einspeisevergütung + Ersparnis"
+                          icon={<TrendingUp className="w-4 h-4" />}
+                          accentColor="pv"
+                          large
+                          dataOcid="dashboard.card"
+                        />
+                        <MetricCard
                           label="Bezugskosten"
                           value={revenue.bezugskosten.toFixed(2)}
                           unit={currency}
