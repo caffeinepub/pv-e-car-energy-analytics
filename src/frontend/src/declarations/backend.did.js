@@ -32,6 +32,7 @@ export const UserRole = IDL.Variant({
 export const Time = IDL.Int;
 export const UserProfile = IDL.Record({
   'principal' : IDL.Principal,
+  'co2Faktor' : IDL.Float64,
   'registeredAt' : Time,
   'waehrung' : IDL.Text,
   'pvName' : IDL.Text,
@@ -96,6 +97,7 @@ export const idlService = IDL.Service({
   'registerUser' : IDL.Func([IDL.Text], [], []),
   'saveAnalyticsResult' : IDL.Func([IDL.Text, AnalyticsResult], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'updateCo2Faktor' : IDL.Func([IDL.Float64], [], []),
   'updateTarifPeriode' : IDL.Func([TarifPeriode], [], []),
   'updateWaehrung' : IDL.Func([IDL.Text], [], []),
 });
@@ -127,6 +129,7 @@ export const idlFactory = ({ IDL }) => {
   const Time = IDL.Int;
   const UserProfile = IDL.Record({
     'principal' : IDL.Principal,
+    'co2Faktor' : IDL.Float64,
     'registeredAt' : Time,
     'waehrung' : IDL.Text,
     'pvName' : IDL.Text,
@@ -195,6 +198,7 @@ export const idlFactory = ({ IDL }) => {
     'registerUser' : IDL.Func([IDL.Text], [], []),
     'saveAnalyticsResult' : IDL.Func([IDL.Text, AnalyticsResult], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'updateCo2Faktor' : IDL.Func([IDL.Float64], [], []),
     'updateTarifPeriode' : IDL.Func([TarifPeriode], [], []),
     'updateWaehrung' : IDL.Func([IDL.Text], [], []),
   });

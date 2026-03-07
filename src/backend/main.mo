@@ -6,12 +6,12 @@ import Iter "mo:core/Iter";
 import Text "mo:core/Text";
 import Principal "mo:core/Principal";
 import Order "mo:core/Order";
+import Migration "migration";
 
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
 
-
-
+(with migration = Migration.run)
 actor {
   // Initialize the access control system
   let accessControlState = AccessControl.initState();
@@ -22,6 +22,7 @@ actor {
     pvName : Text;
     registeredAt : Time.Time;
     waehrung : Text;
+    co2Faktor : Float;
   };
 
   module PVSession {
@@ -153,6 +154,18 @@ actor {
     users.add(caller, { profile with waehrung });
   };
 
+  // New function to update co2Faktor
+  public shared ({ caller }) func updateCo2Faktor(co2Faktor : Float) : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can update co2Faktor");
+    };
+    let profile = switch (users.get(caller)) {
+      case (null) { Runtime.trap("User not registered") };
+      case (?p) { p };
+    };
+    users.add(caller, { profile with co2Faktor });
+  };
+
   // User registration and profile access
   public shared ({ caller }) func registerUser(pvName : Text) : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
@@ -166,6 +179,7 @@ actor {
       pvName;
       registeredAt = Time.now();
       waehrung = "CHF";
+      co2Faktor = 0.128;
     };
     users.add(caller, profile);
   };

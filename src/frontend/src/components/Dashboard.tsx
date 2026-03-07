@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
+  Leaf,
   Loader2,
   TrendingUp,
   Zap,
@@ -33,6 +34,7 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import type { AnalyticsResult, TarifPeriode } from "../backend.d.ts";
+import { useCo2 } from "../contexts/Co2Context";
 import { useCurrency } from "../contexts/CurrencyContext";
 import { useActor } from "../hooks/useActor";
 import {
@@ -105,6 +107,7 @@ function formatKwh(val: number, name: string) {
 export default function Dashboard() {
   const { actor, isFetching: actorFetching } = useActor();
   const { currency } = useCurrency();
+  const { co2Faktor } = useCo2();
 
   // Raw stored data
   const [allPVRows, setAllPVRows] = useState<PVDataRow[]>([]);
@@ -795,6 +798,18 @@ export default function Dashboard() {
                     value={analytics.totalEVCharging.toFixed(1)}
                     unit="kWh"
                     icon={<Car className="w-4 h-4" />}
+                    accentColor="ev"
+                    dataOcid="dashboard.card"
+                  />
+                  <MetricCard
+                    label="CO₂-Einsparung"
+                    value={(
+                      filteredPVRows.reduce((s, r) => s + r.eigenverbrauch, 0) *
+                      co2Faktor
+                    ).toFixed(1)}
+                    unit="kg"
+                    description="Vermiedene CO₂-Emissionen durch Eigenverbrauch"
+                    icon={<Leaf className="w-4 h-4" />}
                     accentColor="ev"
                     dataOcid="dashboard.card"
                   />

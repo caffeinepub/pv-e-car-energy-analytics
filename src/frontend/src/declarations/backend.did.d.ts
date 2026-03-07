@@ -48,6 +48,7 @@ export interface TarifStufe {
 export type Time = bigint;
 export interface UserProfile {
   'principal' : Principal,
+  'co2Faktor' : number,
   'registeredAt' : Time,
   'waehrung' : string,
   'pvName' : string,
@@ -87,6 +88,7 @@ export interface _SERVICE {
   'registerUser' : ActorMethod<[string], undefined>,
   'saveAnalyticsResult' : ActorMethod<[string, AnalyticsResult], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'updateCo2Faktor' : ActorMethod<[number], undefined>,
   'updateTarifPeriode' : ActorMethod<[TarifPeriode], undefined>,
   'updateWaehrung' : ActorMethod<[string], undefined>,
 }

@@ -134,6 +134,7 @@ export interface WattpilotSession {
 }
 export interface UserProfile {
     principal: Principal;
+    co2Faktor: number;
     registeredAt: Time;
     waehrung: string;
     pvName: string;
@@ -168,6 +169,7 @@ export interface backendInterface {
     registerUser(pvName: string): Promise<void>;
     saveAnalyticsResult(id: string, result: AnalyticsResult): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
+    updateCo2Faktor(co2Faktor: number): Promise<void>;
     updateTarifPeriode(periode: TarifPeriode): Promise<void>;
     updateWaehrung(waehrung: string): Promise<void>;
 }
@@ -507,6 +509,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.saveCallerUserProfile(arg0);
+            return result;
+        }
+    }
+    async updateCo2Faktor(arg0: number): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateCo2Faktor(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateCo2Faktor(arg0);
             return result;
         }
     }

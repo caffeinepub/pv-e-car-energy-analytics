@@ -52,6 +52,7 @@ export interface WattpilotSession {
 }
 export interface UserProfile {
     principal: Principal;
+    co2Faktor: number;
     registeredAt: Time;
     waehrung: string;
     pvName: string;
@@ -85,6 +86,7 @@ export interface backendInterface {
     registerUser(pvName: string): Promise<void>;
     saveAnalyticsResult(id: string, result: AnalyticsResult): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
+    updateCo2Faktor(co2Faktor: number): Promise<void>;
     updateTarifPeriode(periode: TarifPeriode): Promise<void>;
     updateWaehrung(waehrung: string): Promise<void>;
 }
