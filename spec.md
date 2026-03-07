@@ -2,48 +2,57 @@
 
 ## Current State
 
-- Dashboard with KPI cards (Kennzahlen, Erträge & Kosten, Wattpilot Ladekosten), collapsible groups, period filter (Tag/Monat/Jahr/Gesamt)
-- Tabs: Dashboard, Daten hochladen, Tarife, Einstellungen
-- Einstellungen-Tab: Profil info + Währungsauswahl (CurrencySelector)
-- Backend: UserProfile has fields: principal, pvName, registeredAt, waehrung
-- analytics.ts: aggregateByYear returns YearlyEnergy[]
-- tariff.ts: computeRevenueByYear returns yearly revenue breakdown
-- CurrencyContext: provides currency string globally
+- Dashboard has a "Demo-Daten laden" button in the empty state.
+- Demo data (`DEMO_PV_CSV`, `DEMO_WATTPILOT_CSV`) is defined inline in `Dashboard.tsx` and covers only January 2024 (15 days). No Wattpilot data existed in previous iterations for the demo beyond Jan 2024.
+- There is no "Delete demo data" button anywhere.
+- The backend has `addPVSession`, `addWattpilotSession`, `deleteSession` APIs.
+- Sessions are identified by a UUID `id` and a `name` string.
+- The demo data is uploaded with names "Demo PV-Daten" and "Demo Wattpilot-Daten".
+- Tariff periods are managed separately and not touched here.
 
 ## Requested Changes (Diff)
 
 ### Add
-1. **CO2-Einsparung feature:**
-   - Backend: add `co2Faktor: Float` field to UserProfile (default 0.128 kg/kWh for Swiss mix)
-   - Backend: new `updateCo2Faktor(co2Faktor: Float)` mutation
-   - Einstellungen-Tab: new card "CO2-Faktor" with numeric input (kg/kWh), save button, persisted per II
-   - Dashboard: new CO2-Kachel in "Kennzahlen" group showing kg CO2 saved = eigenverbrauch_kWh × co2Faktor
-   - CO2Context (or extend CurrencyContext pattern) to make co2Faktor available app-wide
-
-2. **Jahresvergleich-Tab:**
-   - New tab "Vergleich" (with GitCompareArrows or BarChart2 icon) in the main TabsList
-   - New component `JahresVergleich.tsx`
-   - Two year selectors (Jahr 1, Jahr 2) — dropdowns populated from available years in loaded data
-   - Side-by-side grouped bar chart comparing key metrics per month: Erzeugung, Verbrauch, Einspeisung, Netzbezug, Eigenverbrauch
-   - Summary cards below: total Erzeugung, Ertrag (if tariffs available), CO2-Einsparung for each selected year
-   - Only 2 years at a time; years are independently selectable
+- Extended demo PV data covering all 12 months of **2024** and all 12 months of **2025** (realistic seasonal PV profile, one row per day, ~365 rows per year = ~730 rows total).
+- Extended demo Wattpilot data covering all 12 months of **2024** and all 12 months of **2025** (matching dates, realistic EV charging split between PV/Grid/Battery).
+- A demo tariff period covering 2024-01-01 to 2025-12-31 with a simple flat bezug rate (0.28 CHF/kWh) and einspeisung rate (0.10 CHF/kWh), stored as part of the demo load so financial KPIs are visible immediately.
+- A **"Demo-Daten löschen"** button that:
+  - Is **only visible** when demo data is currently loaded (i.e. the PV sessions list contains a session named "Demo PV-Daten 2024-2025").
+  - Deletes only the demo PV session, demo Wattpilot session, and demo tariff period (identified by name/id stored at load time).
+  - Shows a confirmation AlertDialog before deleting.
+  - After deletion, resets the dashboard to the empty state.
 
 ### Modify
-- `UserProfile` type in backend.mo: add `co2Faktor: Float`
-- `registerUser`: initialize co2Faktor to 0.128
-- `backend.d.ts`: update UserProfile type to include co2Faktor
-- `App.tsx SettingsPanel`: add CO2-Faktor input card
-- `Dashboard.tsx`: add CO2-Einsparung MetricCard in Kennzahlen group
-- `App.tsx MainApp`: add Vergleich tab
+- `DEMO_PV_CSV`: Replace the existing 15-row January-2024 snippet with a full 2-year dataset (2024 + 2025, all months, one row per day). Use realistic seasonal values: low in winter (Jan/Feb/Nov/Dec ~5–15 kWh/day generation), high in summer (May–Aug ~25–45 kWh/day).
+- `DEMO_WATTPILOT_CSV`: Replace the existing 15-row snippet with matching 2-year Wattpilot data. Use realistic daily charging split: PV share higher in summer (~60–80%), lower in winter (~30–50%).
+- `handleLoadDemoData`: After uploading PV + Wattpilot demo sessions, also call `actor.addTarifPeriode(...)` to add a demo tariff period with flat rates so financial metrics render without manual tariff entry.
+- Demo sessions should be uploaded with the name **"Demo PV-Daten 2024-2025"** and **"Demo Wattpilot-Daten 2024-2025"** to allow detection.
+- The empty-state button label changes to "Demo-Daten laden (2024–2025)".
+- When demo data IS loaded, show a secondary "Demo-Daten löschen" button near the period filter bar (not just in the empty state).
 
 ### Remove
-- Nothing removed
+- The old 15-row DEMO_PV_CSV and DEMO_WATTPILOT_CSV constants.
 
 ## Implementation Plan
 
-1. Update `main.mo`: add `co2Faktor: Float` to UserProfile, add `updateCo2Faktor` function, default 0.128
-2. Create `Co2Context.tsx` — provides co2Faktor, loadCo2Faktor, saveCo2Faktor
-3. Update `App.tsx`: wrap app in Co2Provider, add CO2-Faktor settings card in SettingsPanel, add Vergleich tab
-4. Update `Dashboard.tsx`: read co2Faktor from context, add CO2-Einsparung kachel (eigenverbrauch × co2Faktor)
-5. Create `JahresVergleich.tsx`: year selectors, grouped monthly bar chart, summary cards
-6. Update backend.d.ts to include co2Faktor on UserProfile and updateCo2Faktor method
+1. **Generate extended demo data constants** in `Dashboard.tsx`:
+   - `DEMO_PV_CSV_2YR`: header + ~730 rows (01.01.2024–31.12.2025), seasonal generation curve.
+   - `DEMO_WATTPILOT_CSV_2YR`: header + ~730 rows, matching dates, seasonal EV charging split.
+   - `DEMO_TARIF_PERIODE`: a `TarifPeriode` object with flat bezug (0.28) and einspeisung (0.10) rates, all 7×24 grid slots assigned to single stufe, covering 2024-01-01 to 2025-12-31.
+
+2. **Add demo detection state**: After loading sessions, check if any PV session is named "Demo PV-Daten 2024-2025". Expose `isDemoLoaded: boolean` and `demoPVSessionId / demoWPSessionId / demoTarifId` tracked in state (set when demo is loaded, cleared on delete).
+
+3. **Update `handleLoadDemoData`**:
+   - Upload new 2-year CSV data with name "Demo PV-Daten 2024-2025" / "Demo Wattpilot-Daten 2024-2025".
+   - Call `actor.addTarifPeriode(DEMO_TARIF_PERIODE)`.
+   - Store returned IDs in state so the delete handler knows what to remove.
+
+4. **Implement `handleDeleteDemoData`**:
+   - Delete PV session, Wattpilot session, tariff periode by stored IDs.
+   - Clear `allPVRows`, `allWPRows`, `allTarifPerioden` (or reload from backend).
+   - Show success toast.
+
+5. **UI placement of delete button**:
+   - In the period filter bar (top of dashboard), conditionally render a "Demo-Daten löschen" button when `isDemoLoaded` is true.
+   - Wrap in AlertDialog for confirmation.
+   - `data-ocid="dashboard.demo_delete_button"` on the trigger, `data-ocid="dashboard.demo_delete.confirm_button"` on confirm.

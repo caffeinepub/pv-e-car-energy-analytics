@@ -6,12 +6,12 @@ import Iter "mo:core/Iter";
 import Text "mo:core/Text";
 import Principal "mo:core/Principal";
 import Order "mo:core/Order";
-import Migration "migration";
+
 
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
 
-(with migration = Migration.run)
+
 actor {
   // Initialize the access control system
   let accessControlState = AccessControl.initState();

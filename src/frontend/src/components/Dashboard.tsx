@@ -1,3 +1,14 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Principal } from "@icp-sdk/core/principal";
@@ -12,6 +23,7 @@ import {
   Database,
   Leaf,
   Loader2,
+  Trash2,
   TrendingUp,
   Zap,
 } from "lucide-react";
@@ -133,6 +145,11 @@ export default function Dashboard() {
       return s;
     });
 
+  // Demo data session tracking (must be declared before loadData)
+  const [demoPVSessionId, setDemoPVSessionId] = useState<string | null>(null);
+  const [demoWPSessionId, setDemoWPSessionId] = useState<string | null>(null);
+  const [hasDemoTarif, setHasDemoTarif] = useState(false);
+
   // ---------------------------------------------------------------------------
   // Data loading
   // ---------------------------------------------------------------------------
@@ -149,12 +166,30 @@ export default function Dashboard() {
       if (pvSessions.length > 0) {
         const rows = pvSessions.flatMap((s) => parsePVCSV(s.data));
         setAllPVRows(rows);
+      } else {
+        setAllPVRows([]);
       }
       if (wpSessions.length > 0) {
         const rows = wpSessions.flatMap((s) => parseWattpilotCSV(s.data));
         setAllWPRows(rows);
+      } else {
+        setAllWPRows([]);
       }
       setAllTarifPerioden(tarifPerioden);
+
+      // Detect demo session IDs
+      const demoPV = pvSessions.find(
+        (s) => s.name === "Demo PV-Daten 2024-2025",
+      );
+      const demoWP = wpSessions.find(
+        (s) => s.name === "Demo Wattpilot-Daten 2024-2025",
+      );
+      const demoTarif = tarifPerioden.find(
+        (t) => t.id === "demo-tarif-2024-2025",
+      );
+      setDemoPVSessionId(demoPV ? demoPV.id : null);
+      setDemoWPSessionId(demoWP ? demoWP.id : null);
+      setHasDemoTarif(!!demoTarif);
     } catch (err) {
       console.error("Fehler beim Laden:", err);
       toast.error("Daten konnten nicht geladen werden");
@@ -282,45 +317,130 @@ export default function Dashboard() {
   }, [periodMode, allPVRows]);
 
   // ---------------------------------------------------------------------------
-  // Demo data loader
+  // Demo data helpers
   // ---------------------------------------------------------------------------
-  const DEMO_PV_CSV = [
-    "Datum,Gesamt Erzeugung(Wh),Gesamt Verbrauch(Wh),Eigenverbrauch(Wh),Energie ins Netz eingespeist(Wh),Energie vom Netz bezogen(Wh)",
-    "01.01.2024,12500,8200,7100,5400,1100",
-    "02.01.2024,9800,7600,6200,3600,1400",
-    "03.01.2024,14200,9100,8300,5900,800",
-    "04.01.2024,11300,8800,7500,3800,1300",
-    "05.01.2024,16500,10200,9400,7100,800",
-    "06.01.2024,13700,9500,8600,5100,900",
-    "07.01.2024,10200,8100,6900,3300,1200",
-    "08.01.2024,15400,10100,9200,6200,900",
-    "09.01.2024,12800,8900,7800,5000,1100",
-    "10.01.2024,17200,11300,10100,7100,1200",
-    "11.01.2024,14600,9700,8800,5800,900",
-    "12.01.2024,11900,8400,7200,4700,1200",
-    "13.01.2024,16800,10600,9500,7300,1100",
-    "14.01.2024,13200,9200,8100,5100,1100",
-    "15.01.2024,18500,11800,10600,7900,1200",
-  ].join("\n");
+  const isDemoLoaded = demoPVSessionId !== null;
 
-  const DEMO_WATTPILOT_CSV = [
-    "Datum(dd.mm.yyyy),Energie von PV an Wattpilot(kWh),Energie vom Netz an Wattpilot(kWh),Energie von Batterie an Wattpilot(kWh)",
-    "01.01.2024,5.2,1.8,0.5",
-    "02.01.2024,4.1,2.3,0.3",
-    "03.01.2024,6.8,1.2,0.7",
-    "04.01.2024,5.5,1.9,0.4",
-    "05.01.2024,7.3,0.9,0.6",
-    "06.01.2024,6.1,1.5,0.8",
-    "07.01.2024,3.9,2.6,0.2",
-    "08.01.2024,6.7,1.1,0.5",
-    "09.01.2024,5.8,1.7,0.4",
-    "10.01.2024,7.9,0.8,0.9",
-    "11.01.2024,6.4,1.3,0.6",
-    "12.01.2024,4.7,2.1,0.3",
-    "13.01.2024,7.1,1.0,0.7",
-    "14.01.2024,5.9,1.6,0.5",
-    "15.01.2024,8.2,0.7,1.0",
-  ].join("\n");
+  const DEMO_TARIF_ID = "demo-tarif-2024-2025";
+
+  function createDemoTarifPeriode(): TarifPeriode {
+    const allSlots = Array.from({ length: 7 }, () =>
+      Array.from({ length: 24 }, () => "demo-bezug-1"),
+    );
+    const allFeedSlots = Array.from({ length: 7 }, () =>
+      Array.from({ length: 24 }, () => "demo-einspeisung-1"),
+    );
+    return {
+      id: DEMO_TARIF_ID,
+      von: "2024-01-01",
+      bis: "2025-12-31",
+      stufen: [],
+      bezugStufen: [{ id: "demo-bezug-1", preis: 0.28, farbe: "#ef4444" }],
+      einspeiseStufen: [
+        { id: "demo-einspeisung-1", preis: 0.1, farbe: "#22c55e" },
+      ],
+      zuordnungBezug: allSlots,
+      zuordnungEinspeisung: allFeedSlots,
+      owner: Principal.fromText("2vxsx-fae"),
+    };
+  }
+
+  function generateDemoPVCSV(): string {
+    const header =
+      "Datum,Gesamt Erzeugung(Wh),Gesamt Verbrauch(Wh),Eigenverbrauch(Wh),Energie ins Netz eingespeist(Wh),Energie vom Netz bezogen(Wh)";
+    const rows: string[] = [header];
+
+    // Seasonal base generation (Wh/day) indexed by month (0=Jan)
+    const genBase = [
+      9000, 10000, 17000, 24000, 36000, 40000, 42000, 38000, 26000, 16000, 9000,
+      7000,
+    ];
+    // Seasonal base verbrauch (Wh/day) - higher in winter, lower in summer
+    const verbBase = [
+      24000, 22000, 19000, 16000, 14000, 13000, 13500, 14000, 16000, 19000,
+      22000, 25000,
+    ];
+
+    // Pseudo-random variation seeded by day index
+    function vary(base: number, seed: number, pct: number): number {
+      const rand = Math.sin(seed * 127.1 + 311.7) * 0.5 + 0.5;
+      return Math.round(base * (1 - pct + rand * 2 * pct));
+    }
+
+    function pad(n: number): string {
+      return String(n).padStart(2, "0");
+    }
+
+    let dayIndex = 0;
+    for (let year = 2024; year <= 2025; year++) {
+      for (let month = 1; month <= 12; month++) {
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const mIdx = month - 1;
+        for (let day = 1; day <= daysInMonth; day++) {
+          const seed = dayIndex++;
+          const gen = vary(genBase[mIdx]!, seed, 0.2);
+          const verb = vary(verbBase[mIdx]!, seed + 500, 0.15);
+          // eigenverbrauch = min(gen, verb) with some variation
+          const maxEigen = Math.min(gen, verb);
+          const eigenRatio = 0.6 + (Math.sin(seed * 73.1) * 0.5 + 0.5) * 0.35;
+          const eigen = Math.round(maxEigen * eigenRatio);
+          const einspeisung = Math.max(0, gen - eigen);
+          const netzbezug = Math.max(0, verb - eigen);
+          rows.push(
+            `${pad(day)}.${pad(month)}.${year},${gen},${verb},${eigen},${einspeisung},${netzbezug}`,
+          );
+        }
+      }
+    }
+    return rows.join("\n");
+  }
+
+  function generateDemoWattpilotCSV(): string {
+    const header =
+      "Datum(dd.mm.yyyy),Energie von PV an Wattpilot(kWh),Energie vom Netz an Wattpilot(kWh),Energie von Batterie an Wattpilot(kWh)";
+    const rows: string[] = [header];
+
+    // Seasonal total EV charging (kWh/day) and PV share by month
+    const totalBase = [7, 7.5, 8, 8.5, 10, 12, 13, 11.5, 9, 8, 7.5, 7];
+    const pvShareBase = [
+      0.35, 0.38, 0.48, 0.58, 0.68, 0.75, 0.78, 0.72, 0.62, 0.5, 0.4, 0.32,
+    ];
+    const batteryShareBase = [
+      0.07, 0.07, 0.08, 0.09, 0.1, 0.12, 0.13, 0.12, 0.1, 0.09, 0.08, 0.07,
+    ];
+
+    function vary(base: number, seed: number, pct: number): number {
+      const rand = Math.sin(seed * 213.5 + 771.3) * 0.5 + 0.5;
+      return base * (1 - pct + rand * 2 * pct);
+    }
+
+    function pad(n: number): string {
+      return String(n).padStart(2, "0");
+    }
+
+    let dayIndex = 0;
+    for (let year = 2024; year <= 2025; year++) {
+      for (let month = 1; month <= 12; month++) {
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const mIdx = month - 1;
+        for (let day = 1; day <= daysInMonth; day++) {
+          const seed = dayIndex++;
+          const total = vary(totalBase[mIdx]!, seed, 0.2);
+          const pvShare = vary(pvShareBase[mIdx]!, seed + 300, 0.1);
+          const battShare = vary(batteryShareBase[mIdx]!, seed + 600, 0.1);
+          const pvKwh = Number.parseFloat((total * pvShare).toFixed(2));
+          const battKwh = Number.parseFloat((total * battShare).toFixed(2));
+          const netzKwh = Number.parseFloat(
+            Math.max(0, total - pvKwh - battKwh).toFixed(2),
+          );
+          rows.push(
+            `${pad(day)}.${pad(month)}.${year},${pvKwh},${netzKwh},${battKwh}`,
+          );
+        }
+      }
+    }
+    return rows.join("\n");
+  }
 
   const handleLoadDemoData = async () => {
     if (!actor) return;
@@ -328,38 +448,59 @@ export default function Dashboard() {
       setLoadingDemo(true);
       toast.loading("Demo-Daten werden geladen…", { id: "demo" });
 
-      const pvCsv = DEMO_PV_CSV;
-      const wattpilotCsv = DEMO_WATTPILOT_CSV;
+      const pvCsv = generateDemoPVCSV();
+      const wattpilotCsv = generateDemoWattpilotCSV();
 
       const pvId = crypto.randomUUID();
       const wpId = crypto.randomUUID();
 
       await Promise.all([
-        actor.addPVSession(pvId, "Demo PV-Daten", pvCsv),
-        actor.addWattpilotSession(wpId, "Demo Wattpilot-Daten", wattpilotCsv),
+        actor.addPVSession(pvId, "Demo PV-Daten 2024-2025", pvCsv),
+        actor.addWattpilotSession(
+          wpId,
+          "Demo Wattpilot-Daten 2024-2025",
+          wattpilotCsv,
+        ),
+        actor.addTarifPeriode(createDemoTarifPeriode()),
       ]);
 
-      const pvRows = parsePVCSV(pvCsv);
-      const wpRows = parseWattpilotCSV(wattpilotCsv);
+      setDemoPVSessionId(pvId);
+      setDemoWPSessionId(wpId);
+      setHasDemoTarif(true);
 
-      const computed = computeAnalytics(pvRows, wpRows);
-      const analyticsId = crypto.randomUUID();
-      const analyticsResult: AnalyticsResult = {
-        id: analyticsId,
-        ...computed,
-        timestamp: BigInt(Date.now()),
-        // owner is overridden by backend (result with owner = caller); placeholder required
-        owner: Principal.fromText("2vxsx-fae"),
-      };
-      await actor.saveAnalyticsResult(analyticsId, analyticsResult);
-
-      setAllPVRows(pvRows);
-      setAllWPRows(wpRows);
+      await loadData();
 
       toast.success("Demo-Daten erfolgreich geladen!", { id: "demo" });
     } catch (err) {
       console.error("Demo-Fehler:", err);
       toast.error("Demo-Daten konnten nicht geladen werden", { id: "demo" });
+    } finally {
+      setLoadingDemo(false);
+    }
+  };
+
+  const handleDeleteDemoData = async () => {
+    if (!actor) return;
+    try {
+      setLoadingDemo(true);
+      toast.loading("Demo-Daten werden gelöscht…", { id: "demo-delete" });
+      const deleteOps: Promise<void>[] = [];
+      if (demoPVSessionId)
+        deleteOps.push(actor.deleteSession(demoPVSessionId, "pv"));
+      if (demoWPSessionId)
+        deleteOps.push(actor.deleteSession(demoWPSessionId, "wattpilot"));
+      if (hasDemoTarif) deleteOps.push(actor.deleteTarifPeriode(DEMO_TARIF_ID));
+      await Promise.all(deleteOps);
+      setDemoPVSessionId(null);
+      setDemoWPSessionId(null);
+      setHasDemoTarif(false);
+      setAllPVRows([]);
+      setAllWPRows([]);
+      await loadData();
+      toast.success("Demo-Daten erfolgreich gelöscht.", { id: "demo-delete" });
+    } catch (err) {
+      console.error(err);
+      toast.error("Fehler beim Löschen der Demo-Daten", { id: "demo-delete" });
     } finally {
       setLoadingDemo(false);
     }
@@ -594,7 +735,7 @@ export default function Dashboard() {
             ) : (
               <>
                 <Zap className="w-4 h-4 mr-2" />
-                Demo-Daten laden
+                Demo-Daten laden (2024–2025)
               </>
             )}
           </Button>
@@ -693,6 +834,54 @@ export default function Dashboard() {
             <span className="text-sm font-mono text-muted-foreground">
               {getPeriodLabel()}
             </span>
+          )}
+
+          {/* Demo data delete button — only shown when demo data is loaded */}
+          {isDemoLoaded && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  data-ocid="dashboard.demo_delete_button"
+                  className="h-8 px-3 text-xs font-mono border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  disabled={loadingDemo}
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                  Demo-Daten löschen
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent
+                data-ocid="dashboard.demo_delete.dialog"
+                className="bg-card border-border"
+              >
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="font-display text-foreground">
+                    Demo-Daten löschen?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="font-mono text-muted-foreground">
+                    Die Demo-Daten (PV 2024–2025, Wattpilot 2024–2025 und
+                    Demo-Tarif) werden dauerhaft entfernt. Eigene hochgeladene
+                    Daten bleiben unberührt.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel
+                    data-ocid="dashboard.demo_delete.cancel_button"
+                    className="font-mono"
+                  >
+                    Abbrechen
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    data-ocid="dashboard.demo_delete.confirm_button"
+                    onClick={() => void handleDeleteDemoData()}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-mono"
+                  >
+                    Löschen
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
       </section>
