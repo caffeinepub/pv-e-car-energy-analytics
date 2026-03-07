@@ -11,6 +11,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  Tooltip as UITooltip,
+} from "@/components/ui/tooltip";
 import { Principal } from "@icp-sdk/core/principal";
 import {
   Activity,
@@ -21,6 +27,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Database,
+  HelpCircle,
   Leaf,
   Loader2,
   Trash2,
@@ -902,20 +909,66 @@ export default function Dashboard() {
         <>
           {/* KPI Cards */}
           <section data-ocid="dashboard.section">
-            <button
-              type="button"
-              data-ocid="dashboard.kennzahlen.toggle"
-              onClick={() => toggleGroup("kennzahlen")}
-              className="flex items-center gap-2 mb-4 w-full text-left group"
-            >
-              <div className="w-1 h-4 rounded-full bg-primary" />
-              <h2 className="text-sm font-mono font-semibold text-muted-foreground uppercase tracking-wider flex-1">
-                Kennzahlen
-              </h2>
-              <ChevronDown
-                className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${collapsedGroups.has("kennzahlen") ? "-rotate-90" : ""}`}
-              />
-            </button>
+            <div className="flex items-center gap-2 mb-4">
+              <button
+                type="button"
+                data-ocid="dashboard.kennzahlen.toggle"
+                onClick={() => toggleGroup("kennzahlen")}
+                className="flex items-center gap-2 flex-1 text-left group"
+              >
+                <div className="w-1 h-4 rounded-full bg-primary" />
+                <h2 className="text-sm font-mono font-semibold text-muted-foreground uppercase tracking-wider flex-1">
+                  Kennzahlen
+                </h2>
+                <ChevronDown
+                  className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${collapsedGroups.has("kennzahlen") ? "-rotate-90" : ""}`}
+                />
+              </button>
+              <TooltipProvider delayDuration={200}>
+                <UITooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      data-ocid="dashboard.legend.tooltip"
+                      className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Farblegende"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="left"
+                    className="bg-card border border-border rounded-lg p-3 shadow-lg max-w-[220px]"
+                  >
+                    <p className="text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                      Farblegende
+                    </p>
+                    <div className="space-y-1.5">
+                      {[
+                        { color: CHART_COLORS.pv, label: "PV-Erzeugung" },
+                        { color: CHART_COLORS.gridDraw, label: "Netzbezug" },
+                        {
+                          color: CHART_COLORS.gridFeed,
+                          label: "Netzeinspeisung",
+                        },
+                        { color: CHART_COLORS.ev, label: "E-Auto / Wattpilot" },
+                        { color: CHART_COLORS.self, label: "Eigenverbrauch" },
+                      ].map(({ color, label }) => (
+                        <div key={label} className="flex items-center gap-2">
+                          <div
+                            className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className="text-xs font-mono text-foreground">
+                            {label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </TooltipContent>
+                </UITooltip>
+              </TooltipProvider>
+            </div>
 
             <AnimatePresence initial={false}>
               {!collapsedGroups.has("kennzahlen") && (
