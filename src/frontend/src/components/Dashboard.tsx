@@ -10,6 +10,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   TooltipContent,
@@ -22,6 +28,7 @@ import {
   Activity,
   ArrowDownLeft,
   ArrowUpRight,
+  CalendarDays,
   Car,
   ChevronDown,
   ChevronLeft,
@@ -56,6 +63,7 @@ import type { AnalyticsResult, TarifPeriode } from "../backend.d.ts";
 import { useCo2 } from "../contexts/Co2Context";
 import { useCurrency } from "../contexts/CurrencyContext";
 import { useDataMode } from "../contexts/DataModeContext";
+import { useLanguage } from "../contexts/LanguageContext";
 import { useActor } from "../hooks/useActor";
 import {
   type PVDataRow,
@@ -98,7 +106,7 @@ const CHART_COLORS = {
   self: "oklch(0.68 0.14 280)",
 };
 
-type PeriodMode = "tag" | "monat" | "jahr" | "gesamt";
+type PeriodMode = "tag" | "monat" | "jahr" | "gesamt" | "zeitraum";
 
 interface TimeSeriesPoint {
   time: string;
@@ -124,8 +132,8 @@ const AXIS_TICK = {
 
 function formatKwh(val: number, name: string) {
   const labels: Record<string, string> = {
-    pvErzeugung: "Gesamt Erzeugung",
-    gesamtErzeugung: "Gesamt Erzeugung",
+    pvErzeugung: "PV Erzeugung",
+    gesamtErzeugung: "PV Erzeugung",
     gesamtVerbrauch: "Gesamt Verbrauch",
     netzbezug: "Netzbezug",
     eigenverbrauch: "Eigenverbrauch",
@@ -134,11 +142,34 @@ function formatKwh(val: number, name: string) {
   return [`${val.toFixed(2)} kWh`, labels[name] ?? name] as [string, string];
 }
 
+function checkDateInRange(
+  datum: string,
+  from: Date | null,
+  to: Date | null,
+): boolean {
+  if (!from && !to) return true;
+  let d: Date;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
+    d = new Date(datum);
+  } else if (/^\d{2}\.\d{2}\.\d{4}$/.test(datum)) {
+    const parts = datum.split(".");
+    d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+  } else {
+    return true;
+  }
+  const f = from ? new Date(from.toDateString()) : null;
+  const t = to ? new Date(to.toDateString()) : null;
+  if (f && d < f) return false;
+  if (t && d > t) return false;
+  return true;
+}
+
 export default function Dashboard() {
   const { actor, isFetching: actorFetching } = useActor();
   const { currency } = useCurrency();
   const { co2Faktor } = useCo2();
   const { mode } = useDataMode();
+  const { t } = useLanguage();
 
   // Raw stored data
   const [allPVRows, setAllPVRows] = useState<PVDataRow[]>([]);
@@ -153,15 +184,30 @@ export default function Dashboard() {
   const [selectedDay, setSelectedDay] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [selectedYear, setSelectedYear] = useState<string>("");
+  const [dateRange, setDateRange] = useState<{
+    from: Date | null;
+    to: Date | null;
+  }>({ from: null, to: null });
+  const [rangePopoverOpen, setRangePopoverOpen] = useState(false);
 
   // Collapsible group state
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
-    new Set(),
-  );
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem("dashboard_collapsed_groups");
+      if (stored) return new Set<string>(JSON.parse(stored));
+    } catch {}
+    return new Set<string>();
+  });
   const toggleGroup = (key: string) =>
     setCollapsedGroups((prev) => {
       const s = new Set(prev);
       s.has(key) ? s.delete(key) : s.add(key);
+      try {
+        localStorage.setItem(
+          "dashboard_collapsed_groups",
+          JSON.stringify(Array.from(s)),
+        );
+      } catch {}
       return s;
     });
 
@@ -285,6 +331,10 @@ export default function Dashboard() {
   // ---------------------------------------------------------------------------
   // Filtered rows based on current period selection
   // ---------------------------------------------------------------------------
+  // Helper to check if a date string (YYYY-MM-DD or DD.MM.YYYY) is within dateRange (stable ref)
+  const dateRangeFrom = dateRange.from;
+  const dateRangeTo = dateRange.to;
+
   const filteredPVRows = useMemo(() => {
     if (periodMode === "tag" && selectedDay)
       return filterRowsByDay(allPVRows, selectedDay);
@@ -292,8 +342,20 @@ export default function Dashboard() {
       return filterRowsByMonth(allPVRows, selectedMonth);
     if (periodMode === "jahr" && selectedYear)
       return filterRowsByYear(allPVRows, selectedYear);
+    if (periodMode === "zeitraum")
+      return allPVRows.filter((r) =>
+        checkDateInRange(r.datum, dateRangeFrom, dateRangeTo),
+      );
     return allPVRows;
-  }, [periodMode, selectedDay, selectedMonth, selectedYear, allPVRows]);
+  }, [
+    periodMode,
+    selectedDay,
+    selectedMonth,
+    selectedYear,
+    dateRangeFrom,
+    dateRangeTo,
+    allPVRows,
+  ]);
 
   const filteredWPRows = useMemo(() => {
     if (periodMode === "tag" && selectedDay)
@@ -302,8 +364,20 @@ export default function Dashboard() {
       return filterWattpilotByMonth(allWPRows, selectedMonth);
     if (periodMode === "jahr" && selectedYear)
       return filterWattpilotByYear(allWPRows, selectedYear);
+    if (periodMode === "zeitraum")
+      return allWPRows.filter((r) =>
+        checkDateInRange(r.datum, dateRangeFrom, dateRangeTo),
+      );
     return allWPRows;
-  }, [periodMode, selectedDay, selectedMonth, selectedYear, allWPRows]);
+  }, [
+    periodMode,
+    selectedDay,
+    selectedMonth,
+    selectedYear,
+    dateRangeFrom,
+    dateRangeTo,
+    allWPRows,
+  ]);
 
   // ---------------------------------------------------------------------------
   // Analytics for the current period
@@ -324,6 +398,10 @@ export default function Dashboard() {
       return filterPremiumByMonth(allPremiumRows, selectedMonth);
     if (periodMode === "jahr" && selectedYear)
       return filterPremiumByYear(allPremiumRows, selectedYear);
+    if (periodMode === "zeitraum")
+      return allPremiumRows.filter((r) =>
+        checkDateInRange(r.datum, dateRangeFrom, dateRangeTo),
+      );
     return allPremiumRows;
   }, [
     mode,
@@ -331,6 +409,8 @@ export default function Dashboard() {
     selectedDay,
     selectedMonth,
     selectedYear,
+    dateRangeFrom,
+    dateRangeTo,
     allPremiumRows,
   ]);
 
@@ -617,6 +697,7 @@ export default function Dashboard() {
       const idx = availableYears.indexOf(selectedYear);
       return availableYears[idx + direction] !== undefined;
     }
+    if (periodMode === "zeitraum") return false;
     return false;
   }
 
@@ -792,11 +873,10 @@ export default function Dashboard() {
 
           <div className="text-center max-w-sm">
             <h2 className="font-display text-xl font-semibold text-foreground mb-2">
-              Keine Daten vorhanden
+              {t("dashboardNoData")}
             </h2>
             <p className="text-sm text-muted-foreground font-mono leading-relaxed">
-              Lade eigene CSV-Daten hoch oder starte mit den Demo-Daten, um die
-              Energie-Analyse zu erkunden.
+              {t("dashboardNoDataHint")}
             </p>
           </div>
 
@@ -809,12 +889,12 @@ export default function Dashboard() {
             {loadingDemo ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Wird geladen…
+                {t("uploadDemoLoading")}
               </>
             ) : (
               <>
                 <Zap className="w-4 h-4 mr-2" />
-                Demo-Daten laden (2024–2025)
+                {t("uploadDemoLoad")} (2024–2025)
               </>
             )}
           </Button>
@@ -862,23 +942,31 @@ export default function Dashboard() {
             data-ocid="period.filter.tab"
             className="flex items-center gap-1 bg-secondary border border-border rounded-md p-1"
           >
-            {(["tag", "monat", "jahr", "gesamt"] as PeriodMode[]).map(
-              (mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  data-ocid={`period.${mode}.tab`}
-                  onClick={() => setPeriodMode(mode)}
-                  className={`px-3 py-1 text-xs font-mono rounded-sm transition-colors capitalize ${
-                    periodMode === mode
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                </button>
-              ),
-            )}
+            {(
+              ["tag", "monat", "jahr", "gesamt", "zeitraum"] as PeriodMode[]
+            ).map((m) => (
+              <button
+                key={m}
+                type="button"
+                data-ocid={`period.${m}.tab`}
+                onClick={() => setPeriodMode(m)}
+                className={`px-3 py-1 text-xs font-mono rounded-sm transition-colors capitalize ${
+                  periodMode === m
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {m === "tag"
+                  ? t("dashboardTimeDay")
+                  : m === "monat"
+                    ? t("dashboardTimeMonth")
+                    : m === "jahr"
+                      ? t("dashboardTimeYear")
+                      : m === "gesamt"
+                        ? t("dashboardTimeTotal")
+                        : t("dashboardTimeRange")}
+              </button>
+            ))}
           </div>
 
           {/* Period Navigator (hidden for "gesamt") */}
@@ -915,6 +1003,77 @@ export default function Dashboard() {
             </span>
           )}
 
+          {/* Zeitraum date range picker */}
+          {periodMode === "zeitraum" && (
+            <div className="flex items-center gap-2">
+              <Popover
+                open={rangePopoverOpen}
+                onOpenChange={setRangePopoverOpen}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    data-ocid="period.zeitraum.button"
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-mono rounded-sm border border-border bg-secondary hover:bg-card transition-colors min-w-[14rem] text-left"
+                  >
+                    <CalendarDays className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                    <span
+                      className={
+                        dateRange.from || dateRange.to
+                          ? "text-foreground"
+                          : "text-muted-foreground"
+                      }
+                    >
+                      {dateRange.from && dateRange.to
+                        ? `${dateRange.from.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })} – ${dateRange.to.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })}`
+                        : dateRange.from
+                          ? dateRange.from.toLocaleDateString("de-DE", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                            })
+                          : t("dashboardSelectRange")}
+                    </span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-auto p-0 bg-card border-border"
+                  align="start"
+                >
+                  <Calendar
+                    mode="range"
+                    selected={
+                      dateRange.from && dateRange.to
+                        ? { from: dateRange.from, to: dateRange.to }
+                        : dateRange.from
+                          ? { from: dateRange.from, to: undefined }
+                          : undefined
+                    }
+                    onSelect={(range) => {
+                      setDateRange({
+                        from: range?.from ?? null,
+                        to: range?.to ?? null,
+                      });
+                      if (range?.from && range?.to) setRangePopoverOpen(false);
+                    }}
+                    numberOfMonths={2}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              {(dateRange.from || dateRange.to) && (
+                <button
+                  type="button"
+                  data-ocid="period.zeitraum.clear.button"
+                  onClick={() => setDateRange({ from: null, to: null })}
+                  className="px-2 py-1.5 text-xs font-mono rounded-sm border border-border bg-secondary hover:bg-card text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {t("dashboardRangeClear")}
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Data mode badge */}
           <span
             data-ocid="dashboard.mode.toggle"
@@ -924,7 +1083,9 @@ export default function Dashboard() {
                 : "bg-secondary border-border text-muted-foreground"
             }`}
           >
-            {mode === "premium" ? "★ Premium" : "Basic"}
+            {mode === "premium"
+              ? `★ ${t("dashboardModePremium")}`
+              : t("dashboardModeBasic")}
           </span>
 
           {/* Demo data delete button — only shown when demo data is loaded */}
@@ -939,7 +1100,7 @@ export default function Dashboard() {
                   disabled={loadingDemo}
                 >
                   <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                  Demo-Daten löschen
+                  {t("uploadDemoDelete")}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent
@@ -948,7 +1109,7 @@ export default function Dashboard() {
               >
                 <AlertDialogHeader>
                   <AlertDialogTitle className="font-display text-foreground">
-                    Demo-Daten löschen?
+                    {t("uploadDemoDelete")}?
                   </AlertDialogTitle>
                   <AlertDialogDescription className="font-mono text-muted-foreground">
                     Die Demo-Daten (PV 2024–2025, Wattpilot 2024–2025 und
@@ -961,14 +1122,14 @@ export default function Dashboard() {
                     data-ocid="dashboard.demo_delete.cancel_button"
                     className="font-mono"
                   >
-                    Abbrechen
+                    {t("cancel")}
                   </AlertDialogCancel>
                   <AlertDialogAction
                     data-ocid="dashboard.demo_delete.confirm_button"
                     onClick={() => void handleDeleteDemoData()}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-mono"
                   >
-                    Löschen
+                    {t("delete")}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -985,7 +1146,7 @@ export default function Dashboard() {
           data-ocid="period.empty_state"
           className="flex items-center justify-center py-16 text-sm font-mono text-muted-foreground"
         >
-          Keine Daten für diesen Zeitraum vorhanden.
+          {t("dashboardNoData")}
         </motion.div>
       )}
 
@@ -1002,7 +1163,7 @@ export default function Dashboard() {
               >
                 <div className="w-1 h-4 rounded-full bg-primary" />
                 <h2 className="text-sm font-mono font-semibold text-muted-foreground uppercase tracking-wider flex-1">
-                  Kennzahlen
+                  {t("dashboardGroupKennzahlen")}
                 </h2>
                 <ChevronDown
                   className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${collapsedGroups.has("kennzahlen") ? "-rotate-90" : ""}`}
@@ -1025,18 +1186,30 @@ export default function Dashboard() {
                     className="bg-card border border-border rounded-lg p-3 shadow-lg max-w-[220px]"
                   >
                     <p className="text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                      Farblegende
+                      {t("dashboardColorLegendTitle")}
                     </p>
                     <div className="space-y-1.5">
                       {[
-                        { color: CHART_COLORS.pv, label: "PV-Erzeugung" },
-                        { color: CHART_COLORS.gridDraw, label: "Netzbezug" },
+                        {
+                          color: CHART_COLORS.pv,
+                          label: t("dashboardColorPv"),
+                        },
+                        {
+                          color: CHART_COLORS.gridDraw,
+                          label: t("dashboardColorGrid"),
+                        },
                         {
                           color: CHART_COLORS.gridFeed,
-                          label: "Netzeinspeisung",
+                          label: t("dashboardColorFeedIn"),
                         },
-                        { color: CHART_COLORS.ev, label: "E-Auto / Wattpilot" },
-                        { color: CHART_COLORS.self, label: "Eigenverbrauch" },
+                        {
+                          color: CHART_COLORS.ev,
+                          label: t("dashboardColorEv"),
+                        },
+                        {
+                          color: CHART_COLORS.self,
+                          label: t("dashboardColorSelf"),
+                        },
                       ].map(({ color, label }) => (
                         <div key={label} className="flex items-center gap-2">
                           <div
@@ -1066,10 +1239,10 @@ export default function Dashboard() {
                   className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 items-stretch"
                 >
                   <MetricCard
-                    label="Autarkiegrad"
+                    label={t("kpiAutarkie")}
                     value={analytics.autarkyRate.toFixed(1)}
                     unit="%"
-                    description="Anteil des Eigenverbrauchs am Gesamtbedarf"
+                    description={t("kpiAutarkie")}
                     icon={<TrendingUp className="w-4 h-4" />}
                     accentColor="pv"
                     large
@@ -1096,7 +1269,7 @@ export default function Dashboard() {
                     dataOcid="dashboard.card"
                   />
                   <MetricCard
-                    label="PV-Erzeugung"
+                    label={t("kpiProduktion")}
                     value={analytics.totalPVGeneration.toFixed(1)}
                     unit="kWh"
                     icon={<Zap className="w-4 h-4" />}
@@ -1104,7 +1277,7 @@ export default function Dashboard() {
                     dataOcid="dashboard.card"
                   />
                   <MetricCard
-                    label="Netzbezug"
+                    label={t("kpiNetzbezug")}
                     value={analytics.totalGridDraw.toFixed(1)}
                     unit="kWh"
                     icon={<ArrowDownLeft className="w-4 h-4" />}
@@ -1112,7 +1285,7 @@ export default function Dashboard() {
                     dataOcid="dashboard.card"
                   />
                   <MetricCard
-                    label="Einspeisung"
+                    label={t("kpiNetzeinspeisung")}
                     value={analytics.totalGridFeedIn.toFixed(1)}
                     unit="kWh"
                     icon={<ArrowUpRight className="w-4 h-4" />}
@@ -1128,7 +1301,7 @@ export default function Dashboard() {
                     dataOcid="dashboard.card"
                   />
                   <MetricCard
-                    label="CO₂-Einsparung"
+                    label={t("kpiCo2Savings")}
                     value={(
                       filteredPVRows.reduce((s, r) => s + r.eigenverbrauch, 0) *
                       co2Faktor
@@ -1156,7 +1329,7 @@ export default function Dashboard() {
                   >
                     <div className="w-1 h-3 rounded-full bg-primary/60" />
                     <p className="text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wider flex-1">
-                      Erträge &amp; Kosten
+                      {t("dashboardGroupErtraege")}
                     </p>
                     <ChevronDown
                       className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${collapsedGroups.has("ertraege") ? "-rotate-90" : ""}`}
@@ -1174,7 +1347,7 @@ export default function Dashboard() {
                         className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-stretch"
                       >
                         <MetricCard
-                          label="Einspeisevergütung"
+                          label={t("kpiEinspeiseverguetung")}
                           value={revenue.einspeiseverguetung.toFixed(2)}
                           unit={currency}
                           description="Vergütung für eingespeisten PV-Strom"
@@ -1183,7 +1356,7 @@ export default function Dashboard() {
                           dataOcid="dashboard.card"
                         />
                         <MetricCard
-                          label="Ersparnis"
+                          label={t("kpiErsparnis")}
                           value={revenue.ersparnis.toFixed(2)}
                           unit={currency}
                           description="Direkt verbrauchte Energie × Bezugstarif"
@@ -1192,7 +1365,7 @@ export default function Dashboard() {
                           dataOcid="dashboard.card"
                         />
                         <MetricCard
-                          label="Ertrag"
+                          label={t("kpiErtrag")}
                           value={revenue.ertrag.toFixed(2)}
                           unit={currency}
                           description="Einspeisevergütung + Ersparnis"
@@ -1202,7 +1375,7 @@ export default function Dashboard() {
                           dataOcid="dashboard.card"
                         />
                         <MetricCard
-                          label="Bezugskosten"
+                          label={t("kpiBezugskosten")}
                           value={revenue.bezugskosten.toFixed(2)}
                           unit={currency}
                           description="Kosten für Netzbezug (PV-Daten)"
@@ -1211,7 +1384,7 @@ export default function Dashboard() {
                           dataOcid="dashboard.card"
                         />
                         <MetricCard
-                          label="Netto-Ertrag"
+                          label={t("kpiNettoErtrag")}
                           value={revenue.nettoErtrag.toFixed(2)}
                           unit={currency}
                           description="Einspeisung − Bezug"
@@ -1237,7 +1410,7 @@ export default function Dashboard() {
                   >
                     <div className="w-1 h-3 rounded-full bg-primary/40" />
                     <p className="text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wider flex-1">
-                      Wattpilot Ladekosten
+                      {t("dashboardGroupWattpilot")}
                     </p>
                     <ChevronDown
                       className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${collapsedGroups.has("wattpilot") ? "-rotate-90" : ""}`}
@@ -1255,7 +1428,7 @@ export default function Dashboard() {
                         className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-stretch"
                       >
                         <MetricCard
-                          label="Wattpilot Netz"
+                          label={t("kpiWattpilotNetz")}
                           value={revenue.wattpilotKostenNetz.toFixed(2)}
                           unit={currency}
                           description="Energie vom Netz × Bezugstarif"
@@ -1264,7 +1437,7 @@ export default function Dashboard() {
                           dataOcid="dashboard.card"
                         />
                         <MetricCard
-                          label="Wattpilot PV"
+                          label={t("kpiWattpilotPv")}
                           value={revenue.wattpilotKostenPV.toFixed(2)}
                           unit={currency}
                           description="PV-Energie an E-Auto × Einspeisetarif"
@@ -1273,7 +1446,7 @@ export default function Dashboard() {
                           dataOcid="dashboard.card"
                         />
                         <MetricCard
-                          label="Wattpilot Batterie"
+                          label={t("kpiWattpilotBatterie")}
                           value={revenue.wattpilotKostenBatterie.toFixed(2)}
                           unit={currency}
                           description="Batterie-Energie an E-Auto × Einspeisetarif"
@@ -1282,7 +1455,7 @@ export default function Dashboard() {
                           dataOcid="dashboard.card"
                         />
                         <MetricCard
-                          label="Wattpilot Gesamt"
+                          label={t("kpiWattpilotGesamt")}
                           value={revenue.wattpilotKosten.toFixed(2)}
                           unit={currency}
                           description="Gesamtkosten Wattpilot-Ladung"
@@ -1521,7 +1694,7 @@ export default function Dashboard() {
                             }}
                           />
                           <span className="text-[11px] font-mono text-muted-foreground">
-                            Netzbezug
+                            {t("kpiNetzbezug")}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -1530,7 +1703,7 @@ export default function Dashboard() {
                             style={{ backgroundColor: CHART_COLORS.self }}
                           />
                           <span className="text-[11px] font-mono text-muted-foreground">
-                            Eigenverbrauch
+                            {t("kpiEigenverbrauch")}
                           </span>
                         </div>
                       </div>
@@ -1573,10 +1746,10 @@ export default function Dashboard() {
                         <Legend
                           formatter={(val) =>
                             val === "pvErzeugung"
-                              ? "Gesamt Erzeugung"
+                              ? t("kpiProduktion")
                               : val === "netzbezug"
-                                ? "Netzbezug"
-                                : "Eigenverbrauch"
+                                ? t("kpiNetzbezug")
+                                : t("kpiEigenverbrauch")
                           }
                           wrapperStyle={{
                             fontSize: "11px",
@@ -1748,7 +1921,7 @@ export default function Dashboard() {
                             style={{ backgroundColor: CHART_COLORS.gridDraw }}
                           />
                           <span className="text-[11px] font-mono text-muted-foreground">
-                            Netzbezug
+                            {t("kpiNetzbezug")}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -1757,7 +1930,7 @@ export default function Dashboard() {
                             style={{ backgroundColor: CHART_COLORS.self }}
                           />
                           <span className="text-[11px] font-mono text-muted-foreground">
-                            Eigenverbrauch
+                            {t("kpiEigenverbrauch")}
                           </span>
                         </div>
                       </div>
@@ -1796,13 +1969,13 @@ export default function Dashboard() {
                         <Legend
                           formatter={(val) =>
                             val === "gesamtErzeugung"
-                              ? "Gesamt Erzeugung"
+                              ? t("kpiProduktion")
                               : val === "netzeinspeisung"
-                                ? "Einspeisung"
+                                ? t("kpiNetzeinspeisung")
                                 : val === "netzbezug"
-                                  ? "Netzbezug"
+                                  ? t("kpiNetzbezug")
                                   : val === "eigenverbrauch"
-                                    ? "Eigenverbrauch"
+                                    ? t("kpiEigenverbrauch")
                                     : val
                           }
                           wrapperStyle={{
@@ -1877,7 +2050,7 @@ export default function Dashboard() {
                       <Legend
                         formatter={(val) =>
                           val === "gesamtErzeugung"
-                            ? "Gesamt Erzeugung"
+                            ? t("kpiProduktion")
                             : val === "netzeinspeisung"
                               ? "Einspeisung"
                               : val === "netzbezug"

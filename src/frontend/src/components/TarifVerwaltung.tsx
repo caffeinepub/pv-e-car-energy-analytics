@@ -17,6 +17,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { TarifPeriode } from "../backend.d.ts";
+import { useLanguage } from "../contexts/LanguageContext";
 import { useActor } from "../hooks/useActor";
 import TarifPeriodeDialog from "./TarifPeriodeDialog";
 
@@ -45,6 +46,7 @@ export default function TarifVerwaltung() {
   );
   const [deleteTarget, setDeleteTarget] = useState<TarifPeriode | null>(null);
   const [saving, setSaving] = useState(false);
+  const { t } = useLanguage();
 
   // ---------------------------------------------------------------------------
   // Load tariff periods
@@ -163,7 +165,7 @@ export default function TarifVerwaltung() {
           className="bg-primary text-primary-foreground hover:opacity-90 font-mono text-sm h-9 shadow-glow"
         >
           <Plus className="w-4 h-4 mr-1.5" />
-          Neue Tarifperiode
+          {t("tarifeAdd")}
         </Button>
       </div>
 
@@ -182,7 +184,7 @@ export default function TarifVerwaltung() {
             </div>
             <div className="text-center max-w-sm">
               <h3 className="font-display text-lg font-semibold text-foreground mb-1">
-                Keine Tarifperioden erfasst
+                {t("tarifeEmpty")}
               </h3>
               <p className="text-sm text-muted-foreground font-mono leading-relaxed">
                 Klicke auf &lsquo;Neue Tarifperiode&rsquo; um zu beginnen.
@@ -194,7 +196,7 @@ export default function TarifVerwaltung() {
               className="bg-primary text-primary-foreground hover:opacity-90 font-mono shadow-glow"
             >
               <Plus className="w-4 h-4 mr-1.5" />
-              Neue Tarifperiode
+              {t("tarifeAdd")}
             </Button>
           </motion.div>
         </AnimatePresence>
@@ -339,7 +341,7 @@ export default function TarifVerwaltung() {
         >
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display text-foreground">
-              Tarifperiode löschen?
+              {t("tarifeDeleteConfirm")}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
               Die Periode{" "}
@@ -355,7 +357,7 @@ export default function TarifVerwaltung() {
               className="font-mono border-border text-muted-foreground"
               onClick={() => setDeleteTarget(null)}
             >
-              Abbrechen
+              {t("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               data-ocid="tarife.confirm_button"
@@ -363,7 +365,7 @@ export default function TarifVerwaltung() {
               className="font-mono bg-destructive text-destructive-foreground hover:bg-destructive/90"
               disabled={saving}
             >
-              Löschen
+              {t("delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

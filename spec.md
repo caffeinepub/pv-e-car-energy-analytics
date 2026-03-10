@@ -1,28 +1,33 @@
 # PV & E-Car Energy Analytics
 
 ## Current State
-The app is fully functional with German-only UI. All text strings are hardcoded in German in App.tsx (702 lines), Dashboard.tsx (1998 lines), DataUpload.tsx (854 lines), JahresVergleich.tsx (582 lines), TarifVerwaltung.tsx (373 lines), TarifPeriodeDialog.tsx (532 lines), MetricCard.tsx (108 lines), CurrencySelector.tsx (131 lines).
+- Dashboard has time filter bar with Tag/Monat/Jahr/Gesamt modes plus prev/next arrows
+- No date range (von-bis) picker exists
+- DataUpload.tsx has several hardcoded German strings that bypass t()
+- translations.ts has uploadBasic/Premium keys but DataUpload.tsx uses some hardcoded strings
 
 ## Requested Changes (Diff)
 
 ### Add
-- `src/frontend/src/contexts/LanguageContext.tsx` — React context providing `lang` ('de'|'en'), `setLang`, and `t(key)` translation function; language persisted in localStorage.
-- `src/frontend/src/utils/translations.ts` — Complete DE/EN translation dictionary for all user-visible strings.
-- Language switcher button (DE | EN) in the app header, right side, next to logout button.
-- Language switcher on the Login and Registration screens (top right).
+- Date range picker (von-bis) in Dashboard filter bar: new "Zeitraum" mode tab that shows a popover with a range calendar (start date + end date). When a range is selected, data is filtered to rows within [start, end] inclusive. Both Basic and Premium data are filtered by this range.
+- Translation keys for DataUpload missing strings: uploadCsvOnly, uploadColumns, uploadNoDatasets, uploadDeleteDescription, uploadDeleteAriaLabel, uploadSubtitle, uploadPvUploaded, uploadWattpilotUploaded, uploadPremiumUploaded, uploadPremiumCustom, uploadPremiumInfo1, uploadPremiumInfo2, uploadDataNote, uploadDataNoteBasic, uploadErrorLoading, uploadErrorNoBackend, uploadErrorCsvOnly, uploadErrorPv, uploadErrorWattpilot, uploadErrorPremium, uploadSuccessFile
+- DataUpload.tsx: replace all hardcoded German strings with t() calls
 
 ### Modify
-- All components: replace hardcoded German strings with `t('key')` calls from `useLanguage()` hook.
-- App.tsx: wrap with `LanguageProvider`, add switcher in header.
+- Dashboard.tsx: add PeriodMode "zeitraum" with dateRange state {from: Date|null, to: Date|null}. Filter logic uses date range when in zeitraum mode. Filter bar shows new tab "Zeitraum" / "Range". When zeitraum is active, show a date range picker popover with label showing "DD.MM.YYYY – DD.MM.YYYY".
+- translations.ts: add new keys for date range UI and DataUpload missing strings (both de and en)
 
 ### Remove
-- Nothing removed.
+- Nothing removed
 
 ## Implementation Plan
-1. Create `translations.ts` with DE/EN keys for all strings.
-2. Create `LanguageContext.tsx` with provider, hook, and localStorage persistence.
-3. Update App.tsx: add LanguageProvider wrapper, add language switcher in header and on login/register screens, replace all German strings with t() calls.
-4. Update Dashboard.tsx: replace all German strings with t() calls.
-5. Update DataUpload.tsx: replace all German strings with t() calls.
-6. Update TarifVerwaltung.tsx and TarifPeriodeDialog.tsx: replace strings.
-7. Update JahresVergleich.tsx, MetricCard.tsx, CurrencySelector.tsx: replace strings.
+1. Add new translation keys to translations.ts (date range + DataUpload missing strings) for both de and en
+2. Update Dashboard.tsx:
+   - Add "zeitraum" to PeriodMode type
+   - Add dateRange state: { from: Date | null; to: Date | null }
+   - Add filter functions for date range (filterRowsByRange, filterWattpilotByRange, filterPremiumByRange)
+   - Add "Zeitraum"/"Range" tab button in filter bar
+   - When zeitraum mode: show Popover with shadcn Calendar in range mode (two-month if needed), plus clear button
+   - Display selected range as "DD.MM.YYYY – DD.MM.YYYY" label
+   - Apply range filter in filteredPVRows, filteredWPRows, filteredPremiumRows memos
+3. Update DataUpload.tsx: replace all hardcoded strings with t() calls using new keys

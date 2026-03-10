@@ -78,6 +78,9 @@ const translations = {
     dashboardColorEv: "E-Auto / Wattpilot",
     dashboardColorSelf: "Eigenverbrauch",
     dashboardModeBasic: "Basic",
+    dashboardTimeRange: "Zeitraum",
+    dashboardSelectRange: "Datum wählen",
+    dashboardRangeClear: "Zurücksetzen",
     dashboardModePremium: "Premium",
 
     // KPI labels
@@ -124,6 +127,31 @@ const translations = {
     uploadStatus: "Status",
     uploadDashboardSource: "Dashboard-Datenquelle",
     uploadSourceSelect: "Welche Daten sollen im Dashboard angezeigt werden?",
+    uploadCsvOnly: "Nur .csv Dateien",
+    uploadColumns: "Spalten:",
+    uploadNoDatasets: "Keine Datensätze vorhanden",
+    uploadDeleteDescription: '"{name}" wird dauerhaft gelöscht.',
+    uploadDeleteAriaLabel: "Datensatz löschen",
+    uploadSubtitle:
+      "CSV-Dateien hochladen und Datenquelle für das Dashboard auswählen",
+    uploadPvUploaded: "Hochgeladene PV-Datensätze ({count})",
+    uploadWattpilotUploaded: "Hochgeladene Wattpilot-Datensätze ({count})",
+    uploadPremiumUploaded: "Hochgeladene Premium-Datensätze ({count})",
+    uploadPremiumCustom: "Benutzerdefiniert Premium",
+    uploadPremiumInfo1:
+      "Die Premium-Datei enthält PV- und Wattpilot-Daten in einer einzigen CSV.",
+    uploadPremiumInfo2:
+      "5-Minuten-Daten werden automatisch zu Stundenwerten aggregiert.",
+    uploadDataNote: "Hinweis zur Datenverarbeitung",
+    uploadDataNoteBasic:
+      "Basic: PV-Daten in Wh werden automatisch in kWh umgerechnet.",
+    uploadErrorLoading: "Datensätze konnten nicht geladen werden",
+    uploadErrorNoBackend: "Keine Verbindung zum Backend",
+    uploadErrorCsvOnly: "Bitte eine .csv Datei hochladen",
+    uploadErrorPv: "Fehler beim Hochladen der PV-Daten",
+    uploadErrorWattpilot: "Fehler beim Hochladen der Wattpilot-Daten",
+    uploadErrorPremium: "Fehler beim Hochladen der Premium-Daten",
+    uploadSuccessFile: '"{name}" erfolgreich hochgeladen',
 
     // Tarife
     tarifeTitle: "Tarifverwaltung",
@@ -285,6 +313,30 @@ const translations = {
     uploadStatus: "Status",
     uploadDashboardSource: "Dashboard Data Source",
     uploadSourceSelect: "Which data should be displayed in the dashboard?",
+    uploadCsvOnly: "Only .csv files",
+    uploadColumns: "Columns:",
+    uploadNoDatasets: "No records available",
+    uploadDeleteDescription: '"{name}" will be permanently deleted.',
+    uploadDeleteAriaLabel: "Delete record",
+    uploadSubtitle: "Upload CSV files and select data source for the dashboard",
+    uploadPvUploaded: "Uploaded PV records ({count})",
+    uploadWattpilotUploaded: "Uploaded Wattpilot records ({count})",
+    uploadPremiumUploaded: "Uploaded Premium records ({count})",
+    uploadPremiumCustom: "Custom Premium",
+    uploadPremiumInfo1:
+      "The Premium file contains PV and Wattpilot data in a single CSV.",
+    uploadPremiumInfo2:
+      "5-minute data is automatically aggregated to hourly values.",
+    uploadDataNote: "Data Processing Note",
+    uploadDataNoteBasic:
+      "Basic: PV data in Wh is automatically converted to kWh.",
+    uploadErrorLoading: "Could not load records",
+    uploadErrorNoBackend: "No backend connection",
+    uploadErrorCsvOnly: "Please upload a .csv file",
+    uploadErrorPv: "Error uploading PV data",
+    uploadErrorWattpilot: "Error uploading Wattpilot data",
+    uploadErrorPremium: "Error uploading Premium data",
+    uploadSuccessFile: '"{name}" uploaded successfully',
 
     // Tarife
     tarifeTitle: "Tariff Management",
