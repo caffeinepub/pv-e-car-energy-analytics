@@ -5,7 +5,7 @@ export interface RevenueResult {
   einspeiseverguetung: number; // earned from feed-in
   bezugskosten: number; // paid for grid draw (PV data, includes Wattpilot grid draw)
   nettoErtrag: number; // einspeiseverguetung - bezugskosten (Wattpilot costs already in bezugskosten)
-  ersparnis: number; // eigenverbrauch (kWh) × einspeisetarif → saved costs
+  ersparnis: number; // eigenverbrauch (kWh) × bezugstarif → avoided purchase cost
   ertrag: number; // einspeiseverguetung + ersparnis
   // Wattpilot cost breakdown
   wattpilotKostenNetz: number; // energieNetz × bezugstarif
@@ -159,8 +159,8 @@ export function computeRevenue(
 
     bezugskosten += row.netzbezug * bezugPreis;
     einspeiseverguetung += row.netzeinspeisung * einspeisPreis;
-    // Ersparnis = direkt verbrauchte Energie (Eigenverbrauch in kWh) × Einspeisetarif
-    ersparnis += row.eigenverbrauch * einspeisPreis;
+    // Ersparnis = Eigenverbrauch (kWh) × Bezugstarif (vermiedene Einkaufskosten)
+    ersparnis += row.eigenverbrauch * bezugPreis;
 
     // Wattpilot costs for this day
     const wpRow = wpMap.get(normaliseDatum(row.datum));
@@ -208,14 +208,15 @@ export function computeRevenuePremium(
     if (!periode) continue;
 
     const weekday = getWeekday(row.datum);
-    const hour = row.hour; // exact hour from 5-minute interval timestamp
+    const hour = row.hour; // exact hour from hourly aggregated timestamp
 
     const bezugPreis = getTarifPreis(periode, weekday, hour, "bezug");
     const einspeisPreis = getTarifPreis(periode, weekday, hour, "einspeisung");
 
     bezugskosten += row.netzbezug * bezugPreis;
     einspeiseverguetung += row.netzeinspeisung * einspeisPreis;
-    ersparnis += row.direktVerbraucht * einspeisPreis;
+    // Ersparnis = direkt verbrauchte Energie (kWh) × Bezugstarif (vermiedene Einkaufskosten)
+    ersparnis += row.direktVerbraucht * bezugPreis;
     wattpilotKostenNetz += row.energieNetzWattpilot * bezugPreis;
     wattpilotKostenPV += row.energiePVWattpilot * einspeisPreis;
     wattpilotKostenBatterie += row.energieBatterieWattpilot * einspeisPreis;
@@ -261,7 +262,7 @@ export function computeRevenueByDay(
     const wpPV = wpRow ? wpRow.energiePV * einspeisPreis : 0;
     const wpBatterie = wpRow ? wpRow.energieBatterie * einspeisPreis : 0;
     const wpTotal = wpNetz + wpPV + wpBatterie;
-    const rowErsparnis = row.eigenverbrauch * einspeisPreis;
+    const rowErsparnis = row.eigenverbrauch * bezugPreis;
 
     const existing = byDay.get(row.datum);
     if (existing) {
@@ -336,7 +337,7 @@ export function computeRevenueByMonth(
     const wpBatterie = wpRow ? wpRow.energieBatterie * einspeisPreis : 0;
     const wpTotal = wpNetz + wpPV + wpBatterie;
 
-    const rowErsparnis = row.eigenverbrauch * einspeisPreis;
+    const rowErsparnis = row.eigenverbrauch * bezugPreis;
 
     const existing = byMonth.get(monat);
     if (existing) {
@@ -407,7 +408,7 @@ export function computeRevenueByYear(
     const wpBatterie = wpRow ? wpRow.energieBatterie * einspeisPreis : 0;
     const wpTotal = wpNetz + wpPV + wpBatterie;
 
-    const rowErsparnis = row.eigenverbrauch * einspeisPreis;
+    const rowErsparnis = row.eigenverbrauch * bezugPreis;
 
     const existing = byYear.get(jahr);
     if (existing) {

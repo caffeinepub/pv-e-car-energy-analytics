@@ -51,28 +51,17 @@ import {
   parsePVCSV,
   parseWattpilotCSV,
 } from "../utils/analytics";
+import { aggregatePremiumToHourlyCSV } from "../utils/premiumAggregation";
 
-const CHUNK_SIZE = 1_400_000; // ~1.4 MB to stay under IC 2 MB message limit
-
-/** Split text into chunks that always end on a complete line boundary. */
-function splitIntoLineChunks(text: string, maxChunkSize: number): string[] {
-  const chunks: string[] = [];
-  let offset = 0;
-  while (offset < text.length) {
-    if (offset + maxChunkSize >= text.length) {
-      chunks.push(text.slice(offset));
-      break;
-    }
-    // Find the last newline within the allowed window
-    let end = offset + maxChunkSize;
-    const lastNl = text.lastIndexOf("\n", end);
-    if (lastNl > offset) {
-      end = lastNl + 1; // include the newline in this chunk
-    }
-    chunks.push(text.slice(offset, end));
-    offset = end;
+/** Extract a readable error message from any thrown value */
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
   }
-  return chunks;
 }
 
 interface DataUploadProps {
@@ -87,6 +76,7 @@ interface DropzoneProps {
   uploadStatus: UploadStatus;
   dataOcid: string;
   uploadProgress?: string; // e.g. "2 / 5" — only used during premium upload
+  errorDetail?: string;
 }
 
 function Dropzone({
@@ -95,6 +85,7 @@ function Dropzone({
   uploadStatus,
   dataOcid,
   uploadProgress,
+  errorDetail,
 }: DropzoneProps) {
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -207,6 +198,7 @@ function Dropzone({
               key="error"
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
+              className="flex flex-col items-center gap-2"
             >
               <AlertCircle className="w-8 h-8 text-destructive" />
             </motion.div>
@@ -234,6 +226,11 @@ function Dropzone({
           {uploadStatus === "idle" && (
             <p className="text-xs font-mono text-muted-foreground mt-1">
               Nur .csv Dateien
+            </p>
+          )}
+          {uploadStatus === "error" && errorDetail && (
+            <p className="text-xs font-mono text-destructive mt-1 max-w-xs break-words">
+              {errorDetail}
             </p>
           )}
         </div>
@@ -408,6 +405,9 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
   const [premiumUploadProgress, setPremiumUploadProgress] = useState<
     string | undefined
   >(undefined);
+  const [premiumErrorDetail, setPremiumErrorDetail] = useState<
+    string | undefined
+  >(undefined);
 
   const loadSessions = useCallback(async (a: backendInterface) => {
     try {
@@ -415,7 +415,7 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
       const [pvs, wps, premiums] = await Promise.all([
         a.getPVSessions(),
         a.getWattpilotSessions(),
-        (a as any).getPremiumSessions(),
+        a.getPremiumSessions(),
       ]);
       setPVSessions(pvs);
       setWattpilotSessions(wps);
@@ -557,24 +557,25 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
 
     try {
       setPremiumUploadStatus("uploading");
-      setPremiumUploadProgress(undefined);
+      setPremiumUploadProgress("Aggregiere Stundenwerte…");
+      setPremiumErrorDetail(undefined);
 
-      const csvText = await file.text();
-      const chunks = splitIntoLineChunks(csvText, CHUNK_SIZE);
+      const rawCSV = await file.text();
+
+      // Aggregate 5-min rows to hourly before uploading.
+      // This reduces ~105 000 rows (7+ MB) to ~8 760 rows (~500 KB),
+      // well below the IC 3 MB reply limit.
+      const aggregatedCSV = aggregatePremiumToHourlyCSV(rawCSV);
       const id = crypto.randomUUID();
-      const total = chunks.length;
 
-      // Upload first chunk — creates the session
-      setPremiumUploadProgress(`1 / ${total}`);
-      await (actor as any).addPremiumSession(id, file.name, chunks[0]);
+      console.log(
+        `Premium upload: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB raw) → aggregated to ${(aggregatedCSV.length / 1024).toFixed(0)} KB`,
+      );
 
-      // Upload remaining chunks sequentially
-      for (let i = 1; i < chunks.length; i++) {
-        setPremiumUploadProgress(`${i + 1} / ${total}`);
-        await (actor as any).appendPremiumSessionData(id, chunks[i]);
-      }
+      setPremiumUploadProgress("Hochladen…");
+      await actor.addPremiumSession(id, file.name, aggregatedCSV);
 
-      const updated = await (actor as any).getPremiumSessions();
+      const updated = await actor.getPremiumSessions();
       setPremiumSessions(updated);
       setPremiumUploadProgress(undefined);
       setPremiumUploadStatus("success");
@@ -582,11 +583,16 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
       onDataUploaded?.();
       setTimeout(() => setPremiumUploadStatus("idle"), 3000);
     } catch (err) {
+      const msg = extractErrorMessage(err);
       console.error("Premium upload failed:", err);
       setPremiumUploadProgress(undefined);
       setPremiumUploadStatus("error");
-      toast.error("Fehler beim Hochladen der Premium-Daten");
-      setTimeout(() => setPremiumUploadStatus("idle"), 3000);
+      setPremiumErrorDetail(msg);
+      toast.error(`Fehler: ${msg.slice(0, 120)}`);
+      setTimeout(() => {
+        setPremiumUploadStatus("idle");
+        setPremiumErrorDetail(undefined);
+      }, 8000);
     }
   };
 
@@ -788,9 +794,8 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
                   Charge.
                 </p>
                 <p className="text-xs font-mono text-muted-foreground">
-                  Tarife werden stundengenau berechnet (exakter Zeitstempel pro
-                  Zeile). Grosse Dateien werden automatisch in Teilpakete
-                  aufgeteilt und nacheinander hochgeladen.
+                  5-Minuten-Daten werden automatisch zu Stundenwerten aggregiert
+                  (z.B. 7.5 MB → ~500 KB) vor dem Hochladen.
                 </p>
               </div>
             </div>
@@ -801,6 +806,7 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
                 onFileUpload={handlePremiumUpload}
                 uploadStatus={premiumUploadStatus}
                 uploadProgress={premiumUploadProgress}
+                errorDetail={premiumErrorDetail}
                 dataOcid="premium.dropzone"
               />
               <div>

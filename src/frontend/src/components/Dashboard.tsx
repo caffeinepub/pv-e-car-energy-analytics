@@ -1186,7 +1186,7 @@ export default function Dashboard() {
                           label="Ersparnis"
                           value={revenue.ersparnis.toFixed(2)}
                           unit={currency}
-                          description="Direkt verbrauchte Energie × Einspeisetarif"
+                          description="Direkt verbrauchte Energie × Bezugstarif"
                           icon={<Zap className="w-4 h-4" />}
                           accentColor="pv"
                           dataOcid="dashboard.card"
