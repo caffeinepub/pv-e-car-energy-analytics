@@ -187,6 +187,16 @@ const translations = {
     vergleichErtrag: "Ertrag",
     vergleichBezugskosten: "Bezugskosten",
 
+    tarifeSubtitle: "Tarifperioden",
+    tarifeEmptyHint: "Klicke auf 'Neue Tarifperiode' um zu beginnen.",
+    tarifeDeleteDescription:
+      "Die Periode {period} wird unwiderruflich gelöscht.",
+    vergleichMonthlyComparison: "Monatsvergleich",
+    vergleichValuesInKwh: "Werte in kWh",
+    vergleichNoDataHint:
+      "Lade PV-CSV-Daten hoch, um den Jahresvergleich zu nutzen.",
+    vergleichNoDataYear: "Keine Daten für {year}",
+
     // Footer
     footerBuiltWith: "Erstellt mit",
     footerCopyright: "© {year} PV & E-Car Analytics",
@@ -269,6 +279,9 @@ const translations = {
     dashboardColorSelf: "Self-consumption",
     dashboardModeBasic: "Basic",
     dashboardModePremium: "Premium",
+    dashboardTimeRange: "Date Range",
+    dashboardSelectRange: "Select date",
+    dashboardRangeClear: "Reset",
 
     // KPI labels
     kpiProduktion: "PV Production",
@@ -371,6 +384,14 @@ const translations = {
     vergleichEigenverbrauch: "Self-consumption",
     vergleichErtrag: "Revenue",
     vergleichBezugskosten: "Grid costs",
+
+    tarifeSubtitle: "Tariff Periods",
+    tarifeEmptyHint: "Click 'New Tariff Period' to get started.",
+    tarifeDeleteDescription: "The period {period} will be permanently deleted.",
+    vergleichMonthlyComparison: "Monthly Comparison",
+    vergleichValuesInKwh: "Values in kWh",
+    vergleichNoDataHint: "Upload PV CSV data to use the year comparison.",
+    vergleichNoDataYear: "No data for {year}",
 
     // Footer
     footerBuiltWith: "Built with",

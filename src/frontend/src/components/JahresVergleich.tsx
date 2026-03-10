@@ -173,7 +173,7 @@ function YearSummaryCard({
         </CardHeader>
         <CardContent>
           <p className="text-xs font-mono text-muted-foreground">
-            Keine Daten für {year}
+            {t("vergleichNoDataYear").replace("{year}", String(year))}
           </p>
         </CardContent>
       </Card>
@@ -410,7 +410,7 @@ export default function JahresVergleich() {
           {t("vergleichNoData")}
         </p>
         <p className="text-sm font-mono text-muted-foreground max-w-sm">
-          Lade PV-CSV-Daten hoch, um den Jahresvergleich zu nutzen.
+          {t("vergleichNoDataHint")}
         </p>
       </div>
     );
@@ -502,10 +502,10 @@ export default function JahresVergleich() {
         className="bg-card border border-border rounded-lg p-4"
       >
         <h3 className="text-sm font-mono font-medium text-foreground mb-1">
-          {metricLabel} — Monatsvergleich
+          {metricLabel} — {t("vergleichMonthlyComparison")}
         </h3>
         <p className="text-xs font-mono text-muted-foreground mb-4">
-          {selectedJahr1} vs. {selectedJahr2} — Werte in kWh
+          {selectedJahr1} vs. {selectedJahr2} — {t("vergleichValuesInKwh")}
         </p>
 
         <ResponsiveContainer width="100%" height={280}>

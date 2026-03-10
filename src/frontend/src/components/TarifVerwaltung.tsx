@@ -17,6 +17,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { TarifPeriode } from "../backend.d.ts";
+import { useCurrency } from "../contexts/CurrencyContext";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useActor } from "../hooks/useActor";
 import TarifPeriodeDialog from "./TarifPeriodeDialog";
@@ -47,6 +48,7 @@ export default function TarifVerwaltung() {
   const [deleteTarget, setDeleteTarget] = useState<TarifPeriode | null>(null);
   const [saving, setSaving] = useState(false);
   const { t } = useLanguage();
+  const { currency } = useCurrency();
 
   // ---------------------------------------------------------------------------
   // Load tariff periods
@@ -156,7 +158,7 @@ export default function TarifVerwaltung() {
         <div className="flex items-center gap-2">
           <div className="w-1 h-4 rounded-full bg-primary" />
           <h2 className="text-sm font-mono font-semibold text-muted-foreground uppercase tracking-wider">
-            Tarifperioden
+            {t("tarifeSubtitle")}
           </h2>
         </div>
         <Button
@@ -187,7 +189,7 @@ export default function TarifVerwaltung() {
                 {t("tarifeEmpty")}
               </h3>
               <p className="text-sm text-muted-foreground font-mono leading-relaxed">
-                Klicke auf &lsquo;Neue Tarifperiode&rsquo; um zu beginnen.
+                {t("tarifeEmptyHint")}
               </p>
             </div>
             <Button
@@ -229,7 +231,7 @@ export default function TarifVerwaltung() {
                         onClick={() => openEditDialog(periode)}
                         data-ocid={`tarife.edit_button.${idx + 1}`}
                         className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                        title="Bearbeiten"
+                        title={t("edit")}
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -239,7 +241,7 @@ export default function TarifVerwaltung() {
                         onClick={() => setDeleteTarget(periode)}
                         data-ocid={`tarife.delete_button.${idx + 1}`}
                         className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                        title="Löschen"
+                        title={t("delete")}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -265,14 +267,16 @@ export default function TarifVerwaltung() {
                                 key={stufe.id}
                                 className="w-3 h-3 rounded-sm border border-border/50"
                                 style={{ backgroundColor: stufe.farbe }}
-                                title={`CHF ${stufe.preis.toFixed(4)}/kWh`}
+                                title={`${currency} ${stufe.preis.toFixed(4)}/kWh`}
                               />
                             ))}
                           </div>
                           <span>
                             {bzStufen
                               .slice(0, 2)
-                              .map((s) => `${s.preis.toFixed(4)} CHF/kWh`)
+                              .map(
+                                (s) => `${s.preis.toFixed(4)} ${currency}/kWh`,
+                              )
                               .join(" / ")}
                             {bzStufen.length > 2 ? " …" : ""}
                           </span>
@@ -297,14 +301,16 @@ export default function TarifVerwaltung() {
                                 key={stufe.id}
                                 className="w-3 h-3 rounded-sm border border-border/50"
                                 style={{ backgroundColor: stufe.farbe }}
-                                title={`CHF ${stufe.preis.toFixed(4)}/kWh`}
+                                title={`${currency} ${stufe.preis.toFixed(4)}/kWh`}
                               />
                             ))}
                           </div>
                           <span>
                             {einStufen
                               .slice(0, 2)
-                              .map((s) => `${s.preis.toFixed(4)} CHF/kWh`)
+                              .map(
+                                (s) => `${s.preis.toFixed(4)} ${currency}/kWh`,
+                              )
                               .join(" / ")}
                             {einStufen.length > 2 ? " …" : ""}
                           </span>
@@ -344,11 +350,12 @@ export default function TarifVerwaltung() {
               {t("tarifeDeleteConfirm")}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
-              Die Periode{" "}
               {deleteTarget
-                ? `${formatDisplayDate(deleteTarget.von)} – ${formatDisplayDate(deleteTarget.bis)}`
-                : ""}{" "}
-              wird unwiderruflich gelöscht.
+                ? t("tarifeDeleteDescription").replace(
+                    "{period}",
+                    `${formatDisplayDate(deleteTarget.von)} – ${formatDisplayDate(deleteTarget.bis)}`,
+                  )
+                : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
