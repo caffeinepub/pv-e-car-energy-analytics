@@ -130,18 +130,6 @@ const AXIS_TICK = {
   fill: "oklch(0.58 0.02 80)",
 };
 
-function formatKwh(val: number, name: string) {
-  const labels: Record<string, string> = {
-    pvErzeugung: "PV Erzeugung",
-    gesamtErzeugung: "PV Erzeugung",
-    gesamtVerbrauch: "Gesamt Verbrauch",
-    netzbezug: "Netzbezug",
-    eigenverbrauch: "Eigenverbrauch",
-    netzeinspeisung: "Einspeisung",
-  };
-  return [`${val.toFixed(2)} kWh`, labels[name] ?? name] as [string, string];
-}
-
 function checkDateInRange(
   datum: string,
   from: Date | null,
@@ -170,6 +158,21 @@ export default function Dashboard() {
   const { co2Faktor } = useCo2();
   const { mode } = useDataMode();
   const { t } = useLanguage();
+
+  const formatKwh = useCallback(
+    (val: number, name: string): [string, string] => {
+      const labels: Record<string, string> = {
+        pvErzeugung: t("chartTooltipPvErzeugung"),
+        gesamtErzeugung: t("chartTooltipPvErzeugung"),
+        gesamtVerbrauch: t("chartTooltipGesamtVerbrauch"),
+        netzbezug: t("chartTooltipNetzbezug"),
+        eigenverbrauch: t("chartTooltipEigenverbrauch"),
+        netzeinspeisung: t("chartTooltipEinspeisung"),
+      };
+      return [`${val.toFixed(2)} kWh`, labels[name] ?? name];
+    },
+    [t],
+  );
 
   // Raw stored data
   const [allPVRows, setAllPVRows] = useState<PVDataRow[]>([]);
@@ -214,6 +217,9 @@ export default function Dashboard() {
   // Demo data session tracking (must be declared before loadData)
   const [demoPVSessionId, setDemoPVSessionId] = useState<string | null>(null);
   const [demoWPSessionId, setDemoWPSessionId] = useState<string | null>(null);
+  const [demoPremiumSessionId, setDemoPremiumSessionId] = useState<
+    string | null
+  >(null);
   const [hasDemoTarif, setHasDemoTarif] = useState(false);
 
   // ---------------------------------------------------------------------------
@@ -238,6 +244,10 @@ export default function Dashboard() {
           setAllPVRows([]);
           setAllWPRows([]);
         }
+        const demoPremium = premiumSessions.find(
+          (s: any) => s.name === "Demo Premium-Daten 2024-2025",
+        );
+        setDemoPremiumSessionId(demoPremium ? demoPremium.id : null);
         setDemoPVSessionId(null);
         setDemoWPSessionId(null);
         setHasDemoTarif(false);
@@ -271,14 +281,15 @@ export default function Dashboard() {
         setDemoPVSessionId(demoPV ? demoPV.id : null);
         setDemoWPSessionId(demoWP ? demoWP.id : null);
         setHasDemoTarif(!!demoTarif);
+        setDemoPremiumSessionId(null);
       }
     } catch (err) {
       console.error("Fehler beim Laden:", err);
-      toast.error("Daten konnten nicht geladen werden");
+      toast.error(t("toastDataLoadError"));
     } finally {
       setLoading(false);
     }
-  }, [actor, mode]);
+  }, [actor, mode, t]);
 
   useEffect(() => {
     if (!actorFetching && actor) {
@@ -478,7 +489,8 @@ export default function Dashboard() {
   // ---------------------------------------------------------------------------
   // Demo data helpers
   // ---------------------------------------------------------------------------
-  const isDemoLoaded = demoPVSessionId !== null;
+  const isDemoLoaded =
+    demoPVSessionId !== null || demoPremiumSessionId !== null;
 
   const DEMO_TARIF_ID = "demo-tarif-2024-2025";
 
@@ -601,11 +613,119 @@ export default function Dashboard() {
     return rows.join("\n");
   }
 
+  function generateDemoPremiumCSV(): string {
+    const header =
+      "Datum und Uhrzeit;Direkt verbraucht;Energie aus Batterie bezogen;" +
+      "Energie in Batterie gespeichert;Energie ins Netz eingespeist;" +
+      "Energie vom Netz bezogen;PV Produktion;Verbrauch;" +
+      "Energie vom Netz an Wattpilot;Energie von Batterie an Wattpilot;" +
+      "Energie von PV an Wattpilot;State of Charge;" +
+      "Energie Wattpilot;Energie ins Netz eingespeist | PowerMeter;" +
+      "Energie vom Netz bezogen | PowerMeter;" +
+      "Produktion | METER_CAT_OTHER;Verbrauch | METER_CAT_OTHER";
+    const unitRow =
+      "[dd.MM.yyyy HH:mm];[Wh];[Wh];[Wh];[Wh];[Wh];[Wh];[Wh];[Wh];[Wh];[Wh];[%];[Wh];[Wh];[Wh];[Wh];[Wh]";
+
+    const solarProfile = [
+      0, 0, 0, 0, 0, 0.02, 0.06, 0.12, 0.22, 0.34, 0.44, 0.5, 0.52, 0.48, 0.4,
+      0.3, 0.18, 0.08, 0.02, 0, 0, 0, 0, 0,
+    ];
+    const genBase = [
+      9000, 10000, 17000, 24000, 36000, 40000, 42000, 38000, 26000, 16000, 9000,
+      7000,
+    ];
+    const verbBase = [
+      24000, 22000, 19000, 16000, 14000, 13000, 13500, 14000, 16000, 19000,
+      22000, 25000,
+    ];
+    const totalEvBase = [7, 7.5, 8, 8.5, 10, 12, 13, 11.5, 9, 8, 7.5, 7];
+    const pvEvShareBase = [
+      0.35, 0.38, 0.48, 0.58, 0.68, 0.75, 0.78, 0.72, 0.62, 0.5, 0.4, 0.32,
+    ];
+    const battEvShareBase = [
+      0.07, 0.07, 0.08, 0.09, 0.1, 0.12, 0.13, 0.12, 0.1, 0.09, 0.08, 0.07,
+    ];
+
+    function varyP(base: number, seed: number, pct: number): number {
+      const rand = Math.sin(seed * 127.1 + 311.7) * 0.5 + 0.5;
+      return Math.max(0, base * (1 - pct + rand * 2 * pct));
+    }
+    function padP(n: number): string {
+      return String(n).padStart(2, "0");
+    }
+    function toWh(kwh: number): string {
+      return (Math.round(kwh * 1000 * 100) / 100).toFixed(2);
+    }
+
+    const rows: string[] = [header, unitRow];
+    let dayIndex = 0;
+    for (let year = 2024; year <= 2025; year++) {
+      for (let month = 1; month <= 12; month++) {
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const mIdx = month - 1;
+        for (let day = 1; day <= daysInMonth; day++) {
+          const seed = dayIndex++;
+          const dailyGen = varyP(genBase[mIdx]!, seed, 0.2) / 1000;
+          const dailyVerb = varyP(verbBase[mIdx]!, seed + 500, 0.15) / 1000;
+          const dailyEvTotal = varyP(totalEvBase[mIdx]!, seed + 200, 0.2);
+          const pvEvShare = varyP(pvEvShareBase[mIdx]!, seed + 300, 0.1);
+          const battEvShare = varyP(battEvShareBase[mIdx]!, seed + 600, 0.1);
+          let socVal = 20 + (Math.sin(seed * 0.3) * 0.5 + 0.5) * 60;
+
+          for (let hour = 0; hour < 24; hour++) {
+            const profile = solarProfile[hour]!;
+            const hourSeed = seed * 24 + hour;
+            const pvH = dailyGen * profile * varyP(1, hourSeed + 1000, 0.15);
+            const verbH = (dailyVerb / 24) * varyP(1, hourSeed + 2000, 0.2);
+            const direktH = Math.min(pvH, verbH);
+            const einspeisungH = Math.max(0, pvH - direktH);
+            const netzbezugH = Math.max(0, verbH - direktH);
+            const battLadeH = einspeisungH * 0.3;
+            const battEntladeH = netzbezugH * 0.2;
+            const battNetto = battLadeH - battEntladeH;
+            socVal = Math.min(100, Math.max(0, socVal + battNetto * 20));
+            const evProfile = hour >= 18 || hour <= 7 ? 1.5 : 0.3;
+            const evH =
+              (dailyEvTotal / 24) * evProfile * varyP(1, hourSeed + 3000, 0.2);
+            const pvEvH = evH * pvEvShare;
+            const battEvH = evH * battEvShare;
+            const netzEvH = Math.max(0, evH - pvEvH - battEvH);
+            const evTotalH = pvEvH + battEvH + netzEvH;
+
+            const label = `${padP(day)}.${padP(month)}.${year} ${padP(hour)}:00`;
+            rows.push(
+              [
+                label,
+                toWh(direktH),
+                toWh(battEntladeH),
+                toWh(battLadeH),
+                toWh(einspeisungH),
+                toWh(netzbezugH),
+                toWh(pvH),
+                toWh(verbH),
+                toWh(netzEvH),
+                toWh(battEvH),
+                toWh(pvEvH),
+                socVal.toFixed(2),
+                toWh(evTotalH),
+                toWh(einspeisungH),
+                toWh(netzbezugH),
+                toWh(pvH * 0.1),
+                toWh(verbH * 0.1),
+              ].join(";"),
+            );
+          }
+        }
+      }
+    }
+    return rows.join("\n");
+  }
+
   const handleLoadDemoData = async () => {
     if (!actor) return;
     try {
       setLoadingDemo(true);
-      toast.loading("Demo-Daten werden geladen…", { id: "demo" });
+      toast.loading(t("toastDemoLoading"), { id: "demo" });
 
       const pvCsv = generateDemoPVCSV();
       const wattpilotCsv = generateDemoWattpilotCSV();
@@ -623,16 +743,23 @@ export default function Dashboard() {
         actor.addTarifPeriode(createDemoTarifPeriode()),
       ]);
 
+      const premiumId = crypto.randomUUID();
+      await (actor as any).addPremiumSession(
+        premiumId,
+        "Demo Premium-Daten 2024-2025",
+        generateDemoPremiumCSV(),
+      );
       setDemoPVSessionId(pvId);
       setDemoWPSessionId(wpId);
+      setDemoPremiumSessionId(premiumId);
       setHasDemoTarif(true);
 
       await loadData();
 
-      toast.success("Demo-Daten erfolgreich geladen!", { id: "demo" });
+      toast.success(t("toastDemoLoaded"), { id: "demo" });
     } catch (err) {
       console.error("Demo-Fehler:", err);
-      toast.error("Demo-Daten konnten nicht geladen werden", { id: "demo" });
+      toast.error(t("toastDemoLoadError"), { id: "demo" });
     } finally {
       setLoadingDemo(false);
     }
@@ -642,24 +769,29 @@ export default function Dashboard() {
     if (!actor) return;
     try {
       setLoadingDemo(true);
-      toast.loading("Demo-Daten werden gelöscht…", { id: "demo-delete" });
+      toast.loading(t("toastDemoDeleting"), { id: "demo-delete" });
       const deleteOps: Promise<void>[] = [];
       if (demoPVSessionId)
         deleteOps.push(actor.deleteSession(demoPVSessionId, "pv"));
       if (demoWPSessionId)
         deleteOps.push(actor.deleteSession(demoWPSessionId, "wattpilot"));
       if (hasDemoTarif) deleteOps.push(actor.deleteTarifPeriode(DEMO_TARIF_ID));
+      if (demoPremiumSessionId)
+        deleteOps.push(
+          (actor as any).deleteSession(demoPremiumSessionId, "premium"),
+        );
       await Promise.all(deleteOps);
       setDemoPVSessionId(null);
       setDemoWPSessionId(null);
+      setDemoPremiumSessionId(null);
       setHasDemoTarif(false);
       setAllPVRows([]);
       setAllWPRows([]);
       await loadData();
-      toast.success("Demo-Daten erfolgreich gelöscht.", { id: "demo-delete" });
+      toast.success(t("toastDemoDeleted"), { id: "demo-delete" });
     } catch (err) {
       console.error(err);
-      toast.error("Fehler beim Löschen der Demo-Daten", { id: "demo-delete" });
+      toast.error(t("toastDemoDeleteError"), { id: "demo-delete" });
     } finally {
       setLoadingDemo(false);
     }
@@ -725,7 +857,7 @@ export default function Dashboard() {
       return `${monthNames[Number(m) - 1] ?? m} ${y}`;
     }
     if (periodMode === "jahr" && selectedYear) return selectedYear;
-    return "Gesamtzeitraum";
+    return t("periodGesamt");
   }
 
   function getBarXLabel(datum: string): string {
@@ -912,17 +1044,17 @@ export default function Dashboard() {
   const pieData = analytics
     ? [
         {
-          name: "Eigenverbrauch",
+          name: t("pieSliceSelf"),
           value: selfConsumed,
           color: CHART_COLORS.self,
         },
         {
-          name: "Einspeisung",
+          name: t("pieSliceFeedIn"),
           value: analytics.totalGridFeedIn,
           color: CHART_COLORS.gridFeed,
         },
         {
-          name: "E-Auto Ladung",
+          name: t("pieSliceEv"),
           value: analytics.totalEVCharging,
           color: CHART_COLORS.ev,
         },
@@ -1112,9 +1244,7 @@ export default function Dashboard() {
                     {t("uploadDemoDelete")}?
                   </AlertDialogTitle>
                   <AlertDialogDescription className="font-mono text-muted-foreground">
-                    Die Demo-Daten (PV 2024–2025, Wattpilot 2024–2025 und
-                    Demo-Tarif) werden dauerhaft entfernt. Eigene hochgeladene
-                    Daten bleiben unberührt.
+                    {t("demoDeleteDescription")}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -1249,20 +1379,20 @@ export default function Dashboard() {
                     dataOcid="dashboard.card"
                   />
                   <MetricCard
-                    label="Eigenverbrauchsquote"
+                    label={t("kpiSelfConsumptionRate")}
                     value={analytics.selfConsumptionRate.toFixed(1)}
                     unit="%"
-                    description="Anteil der PV-Erzeugung, die selbst verbraucht wird"
+                    description={t("kpiSelfConsumptionRateDesc")}
                     icon={<Activity className="w-4 h-4" />}
                     accentColor="self"
                     large
                     dataOcid="dashboard.card"
                   />
                   <MetricCard
-                    label="PV-Anteil E-Auto"
+                    label={t("kpiEvPvShare")}
                     value={analytics.pvShareOfEVCharging.toFixed(1)}
                     unit="%"
-                    description="Anteil von PV-Strom beim Laden"
+                    description={t("kpiEvPvShareDesc")}
                     icon={<Car className="w-4 h-4" />}
                     accentColor="ev"
                     large
@@ -1293,7 +1423,7 @@ export default function Dashboard() {
                     dataOcid="dashboard.card"
                   />
                   <MetricCard
-                    label="E-Auto geladen"
+                    label={t("kpiEvCharged")}
                     value={analytics.totalEVCharging.toFixed(1)}
                     unit="kWh"
                     icon={<Car className="w-4 h-4" />}
@@ -1307,7 +1437,7 @@ export default function Dashboard() {
                       co2Faktor
                     ).toFixed(1)}
                     unit="kg"
-                    description="Vermiedene CO₂-Emissionen durch Eigenverbrauch"
+                    description={t("kpiCo2SavingsDesc")}
                     icon={<Leaf className="w-4 h-4" />}
                     accentColor="ev"
                     dataOcid="dashboard.card"
@@ -1449,7 +1579,7 @@ export default function Dashboard() {
                           label={t("kpiWattpilotBatterie")}
                           value={revenue.wattpilotKostenBatterie.toFixed(2)}
                           unit={currency}
-                          description="Batterie-Energie an E-Auto × Einspeisetarif"
+                          description={t("kpiBatterieGespeichertDesc")}
                           icon={<Car className="w-4 h-4" />}
                           accentColor="ev"
                           dataOcid="dashboard.card"
@@ -1479,7 +1609,7 @@ export default function Dashboard() {
                     >
                       <div className="w-1 h-3 rounded-full bg-primary/30" />
                       <p className="text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wider flex-1">
-                        Batterie
+                        {t("dashboardGroupBatterie")}
                       </p>
                       <ChevronDown
                         className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${collapsedGroups.has("batterie") ? "-rotate-90" : ""}`}
@@ -1497,18 +1627,18 @@ export default function Dashboard() {
                           className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-stretch"
                         >
                           <MetricCard
-                            label="Batterie bezogen"
+                            label={t("kpiBatterieBezogen")}
                             value={filteredPremiumRows
                               .reduce((s, r) => s + r.energieBatterieBezogen, 0)
                               .toFixed(1)}
                             unit="kWh"
-                            description="Energie aus Batterie bezogen"
+                            description={t("kpiBatterieBezogenDesc")}
                             icon={<ArrowDownLeft className="w-4 h-4" />}
                             accentColor="ev"
                             dataOcid="dashboard.card"
                           />
                           <MetricCard
-                            label="Batterie gespeichert"
+                            label={t("kpiBatterieGespeichert")}
                             value={filteredPremiumRows
                               .reduce(
                                 (s, r) => s + r.energieBatterieGespeichert,
@@ -1516,13 +1646,13 @@ export default function Dashboard() {
                               )
                               .toFixed(1)}
                             unit="kWh"
-                            description="Energie in Batterie gespeichert"
+                            description={t("kpiBatterieGespeichertDesc")}
                             icon={<ArrowUpRight className="w-4 h-4" />}
                             accentColor="grid-feed"
                             dataOcid="dashboard.card"
                           />
                           <MetricCard
-                            label="State of Charge (Ø)"
+                            label={t("kpiSoc")}
                             value={
                               filteredPremiumRows.length > 0
                                 ? (
@@ -1534,7 +1664,7 @@ export default function Dashboard() {
                                 : "0"
                             }
                             unit="%"
-                            description="Durchschnittlicher Batterieladezustand"
+                            description={t("kpiSocDesc")}
                             icon={<Activity className="w-4 h-4" />}
                             accentColor="self"
                             dataOcid="dashboard.card"
@@ -1553,7 +1683,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-2 mb-4">
               <div className="w-1 h-4 rounded-full bg-primary" />
               <h2 className="text-sm font-mono font-semibold text-muted-foreground uppercase tracking-wider">
-                Diagramme
+                {t("dashboardGroupDiagramme")}
               </h2>
             </div>
 
@@ -1568,10 +1698,10 @@ export default function Dashboard() {
                   className="bg-card border border-border rounded-lg p-4"
                 >
                   <h3 className="text-sm font-mono font-medium text-foreground mb-1">
-                    PV-Erzeugung, Netzbezug &amp; Eigenverbrauch
+                    {t("chartLineTitle")}
                   </h3>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Zeitreihe in kWh
+                    {t("chartLineSubtitle")}
                   </p>
                   {periodMode === "gesamt" ? (
                     <div style={{ position: "relative" }}>
@@ -1681,7 +1811,7 @@ export default function Dashboard() {
                             style={{ backgroundColor: CHART_COLORS.pv }}
                           />
                           <span className="text-[11px] font-mono text-muted-foreground">
-                            Gesamt Erzeugung
+                            {t("chartLegendTotalProduction")}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -1795,21 +1925,24 @@ export default function Dashboard() {
                 >
                   <h3 className="text-sm font-mono font-medium text-foreground mb-1">
                     {periodMode === "tag"
-                      ? "Stündliche Energiebilanz"
+                      ? t("chartBarTitleHourly")
                       : periodMode === "monat"
-                        ? "Tägliche Energiebilanz"
+                        ? t("chartBarTitleDaily")
                         : periodMode === "jahr"
-                          ? "Monatliche Energiebilanz"
-                          : "Tägliche Energiebilanz"}
+                          ? t("chartBarTitleMonthly")
+                          : t("chartBarTitleDaily")}
                   </h3>
                   <p className="text-xs text-muted-foreground mb-4">
                     {periodMode === "tag"
-                      ? `Stundenwerte in kWh – ${getPeriodLabel()}`
+                      ? `${t("chartBarSubHourly")} – ${getPeriodLabel()}`
                       : periodMode === "monat"
-                        ? `Tageswerte in kWh – ${getPeriodLabel()}`
+                        ? `${t("chartBarSubDaily")} – ${getPeriodLabel()}`
                         : periodMode === "jahr"
-                          ? `Monatswerte in kWh – ${getPeriodLabel()}`
-                          : `Tageswerte in kWh (${barData.length} Tage)`}
+                          ? `${t("chartBarSubMonthly")} – ${getPeriodLabel()}`
+                          : t("chartBarSubTotal").replace(
+                              "{n}",
+                              String(barData.length),
+                            )}
                   </p>
                   {periodMode === "gesamt" ? (
                     <div style={{ position: "relative" }}>
@@ -1912,7 +2045,7 @@ export default function Dashboard() {
                             style={{ backgroundColor: CHART_COLORS.pv }}
                           />
                           <span className="text-[11px] font-mono text-muted-foreground">
-                            Gesamt Erzeugung
+                            {t("chartLegendTotalProduction")}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -2017,10 +2150,10 @@ export default function Dashboard() {
                   className="bg-card border border-border rounded-lg p-4"
                 >
                   <h3 className="text-sm font-mono font-medium text-foreground mb-1">
-                    Jährliche Energiebilanz
+                    {t("chartYearlyTitle")}
                   </h3>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Jahreswerte in kWh
+                    {t("chartYearlySubtitle")}
                   </p>
                   <ResponsiveContainer width="100%" height={220}>
                     <BarChart
@@ -2052,11 +2185,11 @@ export default function Dashboard() {
                           val === "gesamtErzeugung"
                             ? t("kpiProduktion")
                             : val === "netzeinspeisung"
-                              ? "Einspeisung"
+                              ? t("chartLegendFeedIn")
                               : val === "netzbezug"
-                                ? "Netzbezug"
+                                ? t("chartLegendGridDraw")
                                 : val === "eigenverbrauch"
-                                  ? "Eigenverbrauch"
+                                  ? t("chartLegendSelfConsumption")
                                   : val
                         }
                         wrapperStyle={{
@@ -2097,10 +2230,10 @@ export default function Dashboard() {
                   className="bg-card border border-border rounded-lg p-4"
                 >
                   <h3 className="text-sm font-mono font-medium text-foreground mb-1">
-                    Energieverteilung
+                    {t("chartPieTitle")}
                   </h3>
                   <p className="text-xs text-muted-foreground mb-4">
-                    Eigenverbrauch / Einspeisung / E-Auto
+                    {t("chartPieSubtitle")}
                   </p>
                   <div className="flex items-center gap-6">
                     <ResponsiveContainer width="50%" height={200}>
@@ -2124,6 +2257,8 @@ export default function Dashboard() {
                         </Pie>
                         <Tooltip
                           contentStyle={TOOLTIP_STYLE}
+                          itemStyle={{ color: "oklch(0.92 0.012 80)" }}
+                          labelStyle={{ color: "oklch(0.92 0.012 80)" }}
                           formatter={(val: number) =>
                             [`${val.toFixed(2)} kWh`, ""] as [string, string]
                           }

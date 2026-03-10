@@ -197,9 +197,105 @@ const translations = {
       "Lade PV-CSV-Daten hoch, um den Jahresvergleich zu nutzen.",
     vergleichNoDataYear: "Keine Daten für {year}",
 
+    // CSV column descriptions
+    uploadColumnsPV:
+      "Datum;Gesamt Erzeugung(Wh);Gesamt Verbrauch(Wh);Eigenverbrauch(Wh);Energie ins Netz eingespeist(Wh);Energie vom Netz bezogen(Wh)",
+    uploadColumnsWattpilot:
+      "Datum(dd.mm.yyyy);Energie von PV an Wattpilot(kWh);Energie vom Netz an Wattpilot(kWh);Energie von Batterie an Wattpilot(kWh)",
+    uploadColumnsPremium:
+      "Datum und Uhrzeit;Direkt verbraucht;Energie aus Batterie bezogen;Energie in Batterie gespeichert;Energie ins Netz eingespeist;Energie vom Netz bezogen;PV Produktion;Verbrauch;Energie vom Netz an Wattpilot;Energie von Batterie an Wattpilot;Energie von PV an Wattpilot;State of Charge;Energie Wattpilot | Wattpilot;Energie ins Netz eingespeist | PowerMeter;Energie vom Netz bezogen | PowerMeter;Produktion | METER_CAT_OTHER;Verbrauch | METER_CAT_OTHER",
+
+    // Toast messages
+    toastDemoLoading: "Demo-Daten werden geladen…",
+    toastDemoLoaded: "Demo-Daten erfolgreich geladen!",
+    toastDemoLoadError: "Demo-Daten konnten nicht geladen werden",
+    toastDemoDeleting: "Demo-Daten werden gelöscht…",
+    toastDemoDeleted: "Demo-Daten erfolgreich gelöscht.",
+    toastDemoDeleteError: "Fehler beim Löschen der Demo-Daten",
+    toastDataLoadError: "Daten konnten nicht geladen werden",
+
+    // Demo delete dialog
+    demoDeleteDescription:
+      "Die Demo-Daten (PV 2024–2025, Wattpilot 2024–2025 und Demo-Tarif) werden dauerhaft entfernt. Eigene hochgeladene Daten bleiben unberührt.",
+
+    // Charts group
+    dashboardGroupDiagramme: "Diagramme",
+    chartLineTitle: "PV-Erzeugung, Netzbezug & Eigenverbrauch",
+    chartLineSubtitle: "Zeitreihe in kWh",
+    chartBarTitleHourly: "Stündliche Energiebilanz",
+    chartBarTitleDaily: "Tägliche Energiebilanz",
+    chartBarTitleMonthly: "Monatliche Energiebilanz",
+    chartBarSubHourly: "Stundenwerte in kWh",
+    chartBarSubDaily: "Tageswerte in kWh",
+    chartBarSubMonthly: "Monatswerte in kWh",
+    chartBarSubTotal: "Tageswerte in kWh ({n} Tage)",
+    chartYearlyTitle: "Jährliche Energiebilanz",
+    chartYearlySubtitle: "Jahreswerte in kWh",
+    chartPieTitle: "Energieverteilung",
+    chartPieSubtitle: "Eigenverbrauch / Einspeisung / E-Auto",
+    chartLegendFeedIn: "Einspeisung",
+    chartLegendGridDraw: "Netzbezug",
+    chartLegendSelfConsumption: "Eigenverbrauch",
+    chartLegendTotalProduction: "Gesamt Erzeugung",
+    chartTooltipPvErzeugung: "PV Erzeugung",
+    chartTooltipGesamtVerbrauch: "Gesamt Verbrauch",
+    chartTooltipNetzbezug: "Netzbezug",
+    chartTooltipEigenverbrauch: "Eigenverbrauch",
+    chartTooltipEinspeisung: "Einspeisung",
+
+    // Pie chart
+    pieSliceSelf: "Eigenverbrauch",
+    pieSliceFeedIn: "Einspeisung",
+    pieSliceEv: "E-Auto Ladung",
+
+    // KPI extras
+    kpiSelfConsumptionRate: "Eigenverbrauchsquote",
+    kpiSelfConsumptionRateDesc:
+      "Anteil der PV-Erzeugung, die selbst verbraucht wird",
+    kpiEvPvShare: "PV-Anteil E-Auto",
+    kpiEvPvShareDesc: "Anteil von PV-Strom beim Laden",
+    kpiEvCharged: "E-Auto geladen",
+    kpiCo2SavingsDesc: "Vermiedene CO₂-Emissionen durch Eigenverbrauch",
+
+    // Battery group
+    dashboardGroupBatterie: "Batterie",
+    kpiBatterieBezogen: "Batterie bezogen",
+    kpiBatterieBezogenDesc: "Energie aus Batterie bezogen",
+    kpiBatterieGespeichert: "Batterie gespeichert",
+    kpiBatterieGespeichertDesc: "Energie in Batterie gespeichert",
+    kpiSocDesc: "Durchschnittlicher Batterieladezustand",
+
+    // TarifPeriodeDialog
+    tarifDialogTitleEdit: "Tarifperiode bearbeiten",
+    tarifDialogTitleNew: "Tarifperiode erstellen",
+    tarifDialogVon: "Von",
+    tarifDialogBis: "Bis",
+    tarifDialogBezug: "Bezugstarif",
+    tarifDialogEinspeisung: "Einspeisetarif",
+    tarifDialogAssignment: "Zuweisung",
+    tarifDialogAddTarif: "TARIF HINZUFÜGEN",
+    tarifDialogCancel: "ABBRECHEN",
+    tarifDialogSave: "OK",
+    tarifDialogErrorDate: "Ungültiges Datum (DD.MM.YYYY)",
+    tarifDialogErrorDateOrder: "Bis muss nach Von liegen",
+    tarifDialogRemoveTarif: "Tarif entfernen",
+
     // Footer
     footerBuiltWith: "Erstellt mit",
     footerCopyright: "© {year} PV & E-Car Analytics",
+    periodGesamt: "Gesamtzeitraum",
+    heroTagline: "Deine Energie. Deine Daten. Dein Ertrag.",
+    heroSubtitle:
+      "Analysiere Solarertrag, Eigenverbrauch und Ladekosten deines E-Autos – präzise, sicher und dezentral.",
+    heroFeature1Title: "Photovoltaik-Analyse",
+    heroFeature1Desc:
+      "Ertrag, Eigenverbrauch und Einspeisevergütung auf einen Blick",
+    heroFeature2Title: "E-Auto Ladekosten",
+    heroFeature2Desc:
+      "Wattpilot-Integration: PV- und Netz-Anteile exakt aufgeschlüsselt",
+    heroFeature3Title: "Datensicherheit",
+    heroFeature3Desc:
+      "Daten verschlüsselt, ausschliesslich deiner Internet Identity zugeordnet",
   },
   en: {
     // General
@@ -393,9 +489,103 @@ const translations = {
     vergleichNoDataHint: "Upload PV CSV data to use the year comparison.",
     vergleichNoDataYear: "No data for {year}",
 
+    // CSV column descriptions
+    uploadColumnsPV:
+      "Date;Total Generation(Wh);Total Consumption(Wh);Self-consumption(Wh);Grid Feed-in(Wh);Grid Draw(Wh)",
+    uploadColumnsWattpilot:
+      "Date(dd.mm.yyyy);Energy from PV to Wattpilot(kWh);Energy from Grid to Wattpilot(kWh);Energy from Battery to Wattpilot(kWh)",
+    uploadColumnsPremium:
+      "Date and Time;Directly consumed;Energy from Battery;Energy to Battery;Grid Feed-in;Grid Draw;PV Production;Consumption;Grid to Wattpilot;Battery to Wattpilot;PV to Wattpilot;State of Charge;Wattpilot Energy | Wattpilot;Grid Feed-in | PowerMeter;Grid Draw | PowerMeter;Production | METER_CAT_OTHER;Consumption | METER_CAT_OTHER",
+
+    // Toast messages
+    toastDemoLoading: "Loading demo data…",
+    toastDemoLoaded: "Demo data loaded successfully!",
+    toastDemoLoadError: "Could not load demo data",
+    toastDemoDeleting: "Deleting demo data…",
+    toastDemoDeleted: "Demo data deleted successfully.",
+    toastDemoDeleteError: "Error deleting demo data",
+    toastDataLoadError: "Could not load data",
+
+    // Demo delete dialog
+    demoDeleteDescription:
+      "The demo data (PV 2024–2025, Wattpilot 2024–2025 and demo tariff) will be permanently removed. Your own uploaded data will remain untouched.",
+
+    // Charts group
+    dashboardGroupDiagramme: "Charts",
+    chartLineTitle: "PV Generation, Grid Draw & Self-consumption",
+    chartLineSubtitle: "Time series in kWh",
+    chartBarTitleHourly: "Hourly Energy Balance",
+    chartBarTitleDaily: "Daily Energy Balance",
+    chartBarTitleMonthly: "Monthly Energy Balance",
+    chartBarSubHourly: "Hourly values in kWh",
+    chartBarSubDaily: "Daily values in kWh",
+    chartBarSubMonthly: "Monthly values in kWh",
+    chartBarSubTotal: "Daily values in kWh ({n} days)",
+    chartYearlyTitle: "Annual Energy Balance",
+    chartYearlySubtitle: "Annual values in kWh",
+    chartPieTitle: "Energy Distribution",
+    chartPieSubtitle: "Self-consumption / Feed-in / EV",
+    chartLegendFeedIn: "Feed-in",
+    chartLegendGridDraw: "Grid Draw",
+    chartLegendSelfConsumption: "Self-consumption",
+    chartLegendTotalProduction: "Total Production",
+    chartTooltipPvErzeugung: "PV Generation",
+    chartTooltipGesamtVerbrauch: "Total Consumption",
+    chartTooltipNetzbezug: "Grid Draw",
+    chartTooltipEigenverbrauch: "Self-consumption",
+    chartTooltipEinspeisung: "Feed-in",
+
+    // Pie chart
+    pieSliceSelf: "Self-consumption",
+    pieSliceFeedIn: "Feed-in",
+    pieSliceEv: "EV Charging",
+
+    // KPI extras
+    kpiSelfConsumptionRate: "Self-consumption Rate",
+    kpiSelfConsumptionRateDesc: "Share of PV generation that is self-consumed",
+    kpiEvPvShare: "EV PV Share",
+    kpiEvPvShareDesc: "Share of PV electricity during charging",
+    kpiEvCharged: "EV Charged",
+    kpiCo2SavingsDesc: "CO₂ emissions avoided through self-consumption",
+
+    // Battery group
+    dashboardGroupBatterie: "Battery",
+    kpiBatterieBezogen: "Battery Draw",
+    kpiBatterieBezogenDesc: "Energy drawn from battery",
+    kpiBatterieGespeichert: "Battery Stored",
+    kpiBatterieGespeichertDesc: "Energy stored in battery",
+    kpiSocDesc: "Average battery state of charge",
+
+    // TarifPeriodeDialog
+    tarifDialogTitleEdit: "Edit Tariff Period",
+    tarifDialogTitleNew: "Create Tariff Period",
+    tarifDialogVon: "From",
+    tarifDialogBis: "To",
+    tarifDialogBezug: "Purchase Tariff",
+    tarifDialogEinspeisung: "Feed-in Tariff",
+    tarifDialogAssignment: "Assignment",
+    tarifDialogAddTarif: "ADD TARIFF",
+    tarifDialogCancel: "CANCEL",
+    tarifDialogSave: "OK",
+    tarifDialogErrorDate: "Invalid date (DD.MM.YYYY)",
+    tarifDialogErrorDateOrder: "To must be after From",
+    tarifDialogRemoveTarif: "Remove tariff",
+
     // Footer
     footerBuiltWith: "Built with",
     footerCopyright: "© {year} PV & E-Car Analytics",
+    periodGesamt: "Overall period",
+    heroTagline: "Your energy. Your data. Your return.",
+    heroSubtitle:
+      "Analyse solar yield, self-consumption and EV charging costs – precise, secure and decentralised.",
+    heroFeature1Title: "Photovoltaic Analysis",
+    heroFeature1Desc: "Yield, self-consumption and feed-in revenue at a glance",
+    heroFeature2Title: "EV Charging Costs",
+    heroFeature2Desc:
+      "Wattpilot integration: PV and grid shares accurately broken down",
+    heroFeature3Title: "Data Security",
+    heroFeature3Desc:
+      "Data encrypted and exclusively linked to your Internet Identity",
   },
 } as const;
 

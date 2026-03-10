@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart3,
+  Car,
   GitCompareArrows,
   Leaf,
   Loader2,
@@ -83,96 +84,167 @@ function LoginScreen() {
   const { login, isLoggingIn, isInitializing } = useInternetIdentity();
   const { t } = useLanguage();
 
+  const features = [
+    {
+      icon: Sun,
+      title: t("heroFeature1Title"),
+      desc: t("heroFeature1Desc"),
+    },
+    {
+      icon: Car,
+      title: t("heroFeature2Title"),
+      desc: t("heroFeature2Desc"),
+    },
+    {
+      icon: ShieldCheck,
+      title: t("heroFeature3Title"),
+      desc: t("heroFeature3Desc"),
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      {/* Background atmosphere */}
+    <div className="min-h-screen relative flex flex-col lg:flex-row">
+      {/* Full-screen background image */}
       <div
-        className="fixed inset-0 pointer-events-none"
+        className="fixed inset-0 z-0"
         style={{
-          background:
-            "radial-gradient(ellipse 80% 60% at 50% 0%, oklch(0.22 0.04 260 / 0.6) 0%, transparent 70%)",
+          backgroundImage:
+            "url('/assets/generated/startseite-hero.dim_1600x900.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
         }}
       />
+      {/* Bright light overlay */}
+      <div className="fixed inset-0 z-0 bg-white/60" />
 
-      {/* Language switcher top right */}
+      {/* Language switcher */}
       <div className="fixed top-4 right-4 z-50">
         <LanguageSwitcher />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-md"
-      >
-        {/* Logo mark */}
-        <div className="flex justify-center mb-8">
-          <div className="relative">
-            <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center shadow-glow">
-              <Zap
-                className="w-8 h-8 text-primary-foreground"
-                strokeWidth={2.5}
-              />
-            </div>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-energy-pv border-2 border-background flex items-center justify-center">
-              <Sun className="w-3 h-3 text-background" strokeWidth={2.5} />
-            </div>
-          </div>
-        </div>
-
-        <Card className="bg-card border-border shadow-2xl">
-          <CardHeader className="text-center pb-4">
-            <CardTitle className="font-display text-2xl text-foreground">
-              {t("loginTitle")}
-            </CardTitle>
-            <CardDescription className="font-mono text-sm text-muted-foreground leading-relaxed mt-2">
-              {t("loginDescription")}
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-6">
-            {/* Security badge */}
-            <div className="flex items-center gap-2.5 p-3 rounded-md bg-secondary/60 border border-border">
-              <ShieldCheck className="w-4 h-4 text-primary flex-shrink-0" />
-              <p className="text-xs font-mono text-muted-foreground">
-                {t("loginSecurity")}
-              </p>
-            </div>
-
-            <Button
-              data-ocid="login.primary_button"
-              onClick={login}
-              disabled={isLoggingIn || isInitializing}
-              className="w-full bg-primary text-primary-foreground hover:opacity-90 font-mono shadow-glow h-11 text-sm"
-            >
-              {isLoggingIn ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {t("loginLoggingIn")}
-                </>
-              ) : (
-                <>
-                  <ShieldCheck className="w-4 h-4 mr-2" />
-                  {t("loginButton")}
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Footer */}
-      <p className="relative z-10 mt-8 text-xs font-mono text-muted-foreground">
-        © {new Date().getFullYear()}. {t("footerBuiltWith")}{" "}
-        <a
-          href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary hover:underline"
+      {/* Left hero column */}
+      <div className="relative z-10 flex-1 flex flex-col justify-center px-8 py-16 lg:px-16 lg:py-24 lg:w-3/5">
+        <motion.div
+          initial={{ opacity: 0, x: -24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
         >
-          caffeine.ai
-        </a>
-      </p>
+          {/* Logo */}
+          <div className="flex items-center gap-3 mb-10">
+            <div className="relative">
+              <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center shadow-lg">
+                <Zap
+                  className="w-7 h-7 text-primary-foreground"
+                  strokeWidth={2.5}
+                />
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-energy-pv border-2 border-white flex items-center justify-center">
+                <Sun className="w-3 h-3 text-white" strokeWidth={2.5} />
+              </div>
+            </div>
+            <span className="font-display text-xl font-bold text-gray-900">
+              PV & E-Car Analytics
+            </span>
+          </div>
+
+          {/* Tagline */}
+          <h1 className="font-display text-4xl lg:text-5xl font-bold text-gray-900 leading-tight mb-4">
+            {t("heroTagline")}
+          </h1>
+          <p className="text-lg text-gray-700 leading-relaxed mb-12 max-w-lg">
+            {t("heroSubtitle")}
+          </p>
+
+          {/* Features */}
+          <div className="space-y-5">
+            {features.map((f) => (
+              <motion.div
+                key={f.title}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.5,
+
+                  ease: "easeOut",
+                }}
+                className="flex items-start gap-4"
+              >
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <f.icon className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">
+                    {f.title}
+                  </p>
+                  <p className="text-gray-600 text-sm mt-0.5">{f.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Right login column */}
+      <div className="relative z-10 flex flex-col justify-center items-center px-8 py-12 lg:w-2/5 lg:py-24">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+          className="w-full max-w-sm"
+        >
+          <Card className="bg-white/90 backdrop-blur-sm border-border shadow-2xl">
+            <CardHeader className="text-center pb-4">
+              <CardTitle className="font-display text-2xl text-foreground">
+                {t("loginTitle")}
+              </CardTitle>
+              <CardDescription className="font-mono text-sm text-muted-foreground leading-relaxed mt-2">
+                {t("loginDescription")}
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-6">
+              <div className="flex items-center gap-2.5 p-3 rounded-md bg-secondary/60 border border-border">
+                <ShieldCheck className="w-4 h-4 text-primary flex-shrink-0" />
+                <p className="text-xs font-mono text-muted-foreground">
+                  {t("loginSecurity")}
+                </p>
+              </div>
+
+              <Button
+                data-ocid="login.primary_button"
+                onClick={login}
+                disabled={isLoggingIn || isInitializing}
+                className="w-full bg-primary text-primary-foreground hover:opacity-90 font-mono shadow-glow h-11 text-sm"
+              >
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {t("loginLoggingIn")}
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4 mr-2" />
+                    {t("loginButton")}
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <p className="text-center mt-6 text-xs font-mono text-gray-500">
+            © {new Date().getFullYear()}. {t("footerBuiltWith")}{" "}
+            <a
+              href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              caffeine.ai
+            </a>
+          </p>
+        </motion.div>
+      </div>
     </div>
   );
 }
@@ -216,17 +288,21 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      {/* Background atmosphere */}
+    <div className="min-h-screen relative flex flex-col items-center justify-center p-4">
+      {/* Full-screen background image */}
       <div
-        className="fixed inset-0 pointer-events-none"
+        className="fixed inset-0 z-0"
         style={{
-          background:
-            "radial-gradient(ellipse 80% 60% at 50% 0%, oklch(0.22 0.04 260 / 0.6) 0%, transparent 70%)",
+          backgroundImage:
+            "url('/assets/generated/startseite-hero.dim_1600x900.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
         }}
       />
+      <div className="fixed inset-0 z-0 bg-white/65" />
 
-      {/* Language switcher top right */}
+      {/* Language switcher */}
       <div className="fixed top-4 right-4 z-50">
         <LanguageSwitcher />
       </div>
@@ -240,19 +316,19 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
         {/* Logo mark */}
         <div className="flex justify-center mb-8">
           <div className="relative">
-            <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center shadow-glow">
+            <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center shadow-lg">
               <Zap
                 className="w-8 h-8 text-primary-foreground"
                 strokeWidth={2.5}
               />
             </div>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-energy-pv border-2 border-background flex items-center justify-center">
-              <Sun className="w-3 h-3 text-background" strokeWidth={2.5} />
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-energy-pv border-2 border-white flex items-center justify-center">
+              <Sun className="w-3 h-3 text-white" strokeWidth={2.5} />
             </div>
           </div>
         </div>
 
-        <Card className="bg-card border-border shadow-2xl">
+        <Card className="bg-white/90 backdrop-blur-sm border-border shadow-2xl">
           <CardHeader className="pb-4">
             <CardTitle className="font-display text-xl text-foreground">
               {t("registerTitle")}
@@ -305,20 +381,19 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
             </form>
           </CardContent>
         </Card>
-      </motion.div>
 
-      {/* Footer */}
-      <p className="relative z-10 mt-8 text-xs font-mono text-muted-foreground">
-        © {new Date().getFullYear()}. {t("footerBuiltWith")}{" "}
-        <a
-          href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary hover:underline"
-        >
-          caffeine.ai
-        </a>
-      </p>
+        <p className="text-center mt-6 text-xs font-mono text-gray-500">
+          © {new Date().getFullYear()}. {t("footerBuiltWith")}{" "}
+          <a
+            href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            caffeine.ai
+          </a>
+        </p>
+      </motion.div>
     </div>
   );
 }

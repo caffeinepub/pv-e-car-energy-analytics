@@ -100,10 +100,10 @@ function Dropzone({
       ? t("uploadPremiumLabel")
       : t("uploadWattpilotLabel");
   const description = isPV
-    ? "Datum;Gesamt Erzeugung(Wh);Gesamt Verbrauch(Wh);Eigenverbrauch(Wh);Energie ins Netz eingespeist(Wh);Energie vom Netz bezogen(Wh)"
+    ? t("uploadColumnsPV")
     : isPremium
-      ? "Datum und Uhrzeit;Direkt verbraucht;Energie aus Batterie bezogen;Energie in Batterie gespeichert;Energie ins Netz eingespeist;Energie vom Netz bezogen;PV Produktion;Verbrauch;Energie vom Netz an Wattpilot;Energie von Batterie an Wattpilot;Energie von PV an Wattpilot;State of Charge;..."
-      : "Datum(dd.mm.yyyy);Energie von PV an Wattpilot(kWh);Energie vom Netz an Wattpilot(kWh);Energie von Batterie an Wattpilot(kWh)";
+      ? t("uploadColumnsPremium")
+      : t("uploadColumnsWattpilot");
   const accentColor = isPV
     ? "oklch(0.78 0.16 75)"
     : isPremium
