@@ -1,5 +1,5 @@
 import type { TarifPeriode } from "../backend.d.ts";
-import type { PVDataRow, WattpilotDataRow } from "./analytics";
+import type { PVDataRow, PremiumDataRow, WattpilotDataRow } from "./analytics";
 
 export interface RevenueResult {
   einspeiseverguetung: number; // earned from feed-in
@@ -169,6 +169,56 @@ export function computeRevenue(
       wattpilotKostenPV += wpRow.energiePV * einspeisPreis;
       wattpilotKostenBatterie += wpRow.energieBatterie * einspeisPreis;
     }
+  }
+
+  const wattpilotKosten =
+    wattpilotKostenNetz + wattpilotKostenPV + wattpilotKostenBatterie;
+  const ertrag = einspeiseverguetung + ersparnis;
+
+  return {
+    einspeiseverguetung: round2(einspeiseverguetung),
+    bezugskosten: round2(bezugskosten),
+    nettoErtrag: round2(einspeiseverguetung - bezugskosten),
+    ersparnis: round2(ersparnis),
+    ertrag: round2(ertrag),
+    wattpilotKostenNetz: round2(wattpilotKostenNetz),
+    wattpilotKostenPV: round2(wattpilotKostenPV),
+    wattpilotKostenBatterie: round2(wattpilotKostenBatterie),
+    wattpilotKosten: round2(wattpilotKosten),
+  };
+}
+
+/**
+ * Compute revenue for Premium data using exact hour from each row's timestamp.
+ * All data comes from PremiumDataRow - no separate wattpilot rows needed.
+ */
+export function computeRevenuePremium(
+  premiumRows: PremiumDataRow[],
+  perioden: TarifPeriode[],
+): RevenueResult {
+  let einspeiseverguetung = 0;
+  let bezugskosten = 0;
+  let ersparnis = 0;
+  let wattpilotKostenNetz = 0;
+  let wattpilotKostenPV = 0;
+  let wattpilotKostenBatterie = 0;
+
+  for (const row of premiumRows) {
+    const periode = findTarifPeriode(row.datum, perioden);
+    if (!periode) continue;
+
+    const weekday = getWeekday(row.datum);
+    const hour = row.hour; // exact hour from 5-minute interval timestamp
+
+    const bezugPreis = getTarifPreis(periode, weekday, hour, "bezug");
+    const einspeisPreis = getTarifPreis(periode, weekday, hour, "einspeisung");
+
+    bezugskosten += row.netzbezug * bezugPreis;
+    einspeiseverguetung += row.netzeinspeisung * einspeisPreis;
+    ersparnis += row.direktVerbraucht * einspeisPreis;
+    wattpilotKostenNetz += row.energieNetzWattpilot * bezugPreis;
+    wattpilotKostenPV += row.energiePVWattpilot * einspeisPreis;
+    wattpilotKostenBatterie += row.energieBatterieWattpilot * einspeisPreis;
   }
 
   const wattpilotKosten =

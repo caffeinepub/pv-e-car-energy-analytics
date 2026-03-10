@@ -12,6 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Principal } from "@icp-sdk/core/principal";
 import {
@@ -20,9 +21,11 @@ import {
   CheckCircle2,
   FileText,
   Loader2,
+  Star,
   Sun,
   Trash2,
   Upload,
+  Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -32,13 +35,45 @@ import type {
   PVSession,
   WattpilotSession,
 } from "../backend.d.ts";
+
+// PremiumSession is in backend.d.ts but resolves via backend.ts at runtime — define inline
+interface PremiumSession {
+  id: string;
+  name: string;
+  data: string;
+  timestamp: bigint;
+}
 import type { backendInterface } from "../backend.d.ts";
+import { useDataMode } from "../contexts/DataModeContext";
 import { useActor } from "../hooks/useActor";
 import {
   computeAnalytics,
   parsePVCSV,
   parseWattpilotCSV,
 } from "../utils/analytics";
+
+const CHUNK_SIZE = 1_400_000; // ~1.4 MB to stay under IC 2 MB message limit
+
+/** Split text into chunks that always end on a complete line boundary. */
+function splitIntoLineChunks(text: string, maxChunkSize: number): string[] {
+  const chunks: string[] = [];
+  let offset = 0;
+  while (offset < text.length) {
+    if (offset + maxChunkSize >= text.length) {
+      chunks.push(text.slice(offset));
+      break;
+    }
+    // Find the last newline within the allowed window
+    let end = offset + maxChunkSize;
+    const lastNl = text.lastIndexOf("\n", end);
+    if (lastNl > offset) {
+      end = lastNl + 1; // include the newline in this chunk
+    }
+    chunks.push(text.slice(offset, end));
+    offset = end;
+  }
+  return chunks;
+}
 
 interface DataUploadProps {
   onDataUploaded?: () => void;
@@ -47,10 +82,11 @@ interface DataUploadProps {
 type UploadStatus = "idle" | "uploading" | "success" | "error";
 
 interface DropzoneProps {
-  type: "pv" | "wattpilot";
+  type: "pv" | "wattpilot" | "premium";
   onFileUpload: (file: File) => Promise<void>;
   uploadStatus: UploadStatus;
   dataOcid: string;
+  uploadProgress?: string; // e.g. "2 / 5" — only used during premium upload
 }
 
 function Dropzone({
@@ -58,17 +94,29 @@ function Dropzone({
   onFileUpload,
   uploadStatus,
   dataOcid,
+  uploadProgress,
 }: DropzoneProps) {
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isPV = type === "pv";
-  const title = isPV ? "PV-Daten (CSV)" : "Wattpilot-Daten (CSV)";
+  const isPremium = type === "premium";
+  const title = isPV
+    ? "PV-Daten (CSV)"
+    : isPremium
+      ? "Benutzerdefiniert Premium (CSV)"
+      : "Wattpilot-Daten (CSV)";
   const description = isPV
     ? "Datum;Gesamt Erzeugung(Wh);Gesamt Verbrauch(Wh);Eigenverbrauch(Wh);Energie ins Netz eingespeist(Wh);Energie vom Netz bezogen(Wh)"
-    : "Datum(dd.mm.yyyy);Energie von PV an Wattpilot(kWh);Energie vom Netz an Wattpilot(kWh);Energie von Batterie an Wattpilot(kWh)";
-  const accentColor = isPV ? "oklch(0.78 0.16 75)" : "oklch(0.72 0.18 140)";
-  const Icon = isPV ? Sun : Car;
+    : isPremium
+      ? "Datum und Uhrzeit;Direkt verbraucht;Energie aus Batterie bezogen;Energie in Batterie gespeichert;Energie ins Netz eingespeist;Energie vom Netz bezogen;PV Produktion;Verbrauch;Energie vom Netz an Wattpilot;Energie von Batterie an Wattpilot;Energie von PV an Wattpilot;State of Charge;..."
+      : "Datum(dd.mm.yyyy);Energie von PV an Wattpilot(kWh);Energie vom Netz an Wattpilot(kWh);Energie von Batterie an Wattpilot(kWh)";
+  const accentColor = isPV
+    ? "oklch(0.78 0.16 75)"
+    : isPremium
+      ? "oklch(0.72 0.16 280)"
+      : "oklch(0.72 0.18 140)";
+  const Icon = isPV ? Sun : isPremium ? Star : Car;
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -134,11 +182,17 @@ function Dropzone({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              className="flex flex-col items-center gap-2"
             >
               <Loader2
                 className="w-8 h-8 animate-spin"
                 style={{ color: accentColor }}
               />
+              {isPremium && uploadProgress && (
+                <span className="text-xs font-mono text-muted-foreground tabular-nums">
+                  {uploadProgress}
+                </span>
+              )}
             </motion.div>
           ) : uploadStatus === "success" ? (
             <motion.div
@@ -196,9 +250,9 @@ function Dropzone({
 }
 
 interface SessionListProps {
-  sessions: (PVSession | WattpilotSession)[];
+  sessions: (PVSession | WattpilotSession | PremiumSession)[];
   onDelete: (id: string) => Promise<void>;
-  type: "pv" | "wattpilot";
+  type: "pv" | "wattpilot" | "premium";
   loading: boolean;
 }
 
@@ -219,7 +273,6 @@ function SessionList({ sessions, onDelete, type, loading }: SessionListProps) {
 
   const formatDate = (timestamp: bigint) => {
     if (timestamp === 0n) return "—";
-    // Motoko Time.now() returns nanoseconds; convert to milliseconds for JS Date
     const ms = Number(timestamp / 1_000_000n);
     if (Number.isNaN(ms) || ms === 0) return "—";
     const date = new Date(ms);
@@ -232,6 +285,9 @@ function SessionList({ sessions, onDelete, type, loading }: SessionListProps) {
       minute: "2-digit",
     });
   };
+
+  const typeLabel =
+    type === "pv" ? "PV-" : type === "premium" ? "Premium-" : "Wattpilot-";
 
   if (loading) {
     return (
@@ -251,7 +307,7 @@ function SessionList({ sessions, onDelete, type, loading }: SessionListProps) {
       >
         <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
         <p className="text-xs font-mono text-muted-foreground">
-          Keine {type === "pv" ? "PV-" : "Wattpilot-"}Datensätze vorhanden
+          Keine {typeLabel}Datensätze vorhanden
         </p>
       </div>
     );
@@ -266,42 +322,41 @@ function SessionList({ sessions, onDelete, type, loading }: SessionListProps) {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: idx * 0.05 }}
           data-ocid={`${type}.item.${idx + 1}`}
-          className="flex items-center gap-3 p-3 rounded-md bg-secondary border border-border group"
+          className="flex items-center gap-3 p-3 rounded-md bg-secondary/50 border border-border"
         >
           <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-mono font-medium text-foreground truncate">
+            <p className="text-xs font-mono text-foreground truncate">
               {session.name}
             </p>
-            <p className="text-xs font-mono text-muted-foreground mt-0.5">
+            <p className="text-xs font-mono text-muted-foreground">
               {formatDate(session.timestamp)}
             </p>
           </div>
           <Badge
-            variant="secondary"
-            className="text-xs font-mono hidden sm:flex flex-shrink-0"
+            variant="outline"
+            className="text-xs font-mono border-border text-muted-foreground flex-shrink-0"
           >
-            {type === "pv" ? "PV" : "EV"}
+            {Math.round(session.data.length / 1000)}kB
           </Badge>
-
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
+              <button
+                type="button"
                 data-ocid={`${type}.delete_button.${idx + 1}`}
-                className="opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                 disabled={deletingId === session.id}
+                className="w-7 h-7 flex items-center justify-center rounded-sm border border-border bg-secondary hover:bg-destructive hover:border-destructive hover:text-destructive-foreground transition-colors disabled:opacity-40"
+                aria-label="Datensatz löschen"
               >
                 {deletingId === session.id ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   <Trash2 className="w-3.5 h-3.5" />
                 )}
-              </Button>
+              </button>
             </AlertDialogTrigger>
             <AlertDialogContent
-              data-ocid={`${type}.dialog`}
+              data-ocid={`${type}.delete.dialog`}
               className="bg-card border-border"
             >
               <AlertDialogHeader>
@@ -309,20 +364,18 @@ function SessionList({ sessions, onDelete, type, loading }: SessionListProps) {
                   Datensatz löschen?
                 </AlertDialogTitle>
                 <AlertDialogDescription className="font-mono text-muted-foreground">
-                  <strong className="text-foreground">{session.name}</strong>{" "}
-                  wird dauerhaft gelöscht und kann nicht wiederhergestellt
-                  werden.
+                  „{session.name}" wird dauerhaft gelöscht.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel
-                  data-ocid={`${type}.cancel_button`}
+                  data-ocid={`${type}.delete.cancel_button`}
                   className="font-mono"
                 >
                   Abbrechen
                 </AlertDialogCancel>
                 <AlertDialogAction
-                  data-ocid={`${type}.confirm_button`}
+                  data-ocid={`${type}.delete.confirm_button`}
                   onClick={() => void handleDelete(session.id)}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-mono"
                 >
@@ -339,23 +392,34 @@ function SessionList({ sessions, onDelete, type, loading }: SessionListProps) {
 
 export default function DataUpload({ onDataUploaded }: DataUploadProps) {
   const { actor, isFetching: actorFetching } = useActor();
+  const { mode, setMode } = useDataMode();
+
   const [pvSessions, setPVSessions] = useState<PVSession[]>([]);
   const [wattpilotSessions, setWattpilotSessions] = useState<
     WattpilotSession[]
   >([]);
+  const [premiumSessions, setPremiumSessions] = useState<PremiumSession[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
+
   const [pvUploadStatus, setPVUploadStatus] = useState<UploadStatus>("idle");
   const [wpUploadStatus, setWPUploadStatus] = useState<UploadStatus>("idle");
+  const [premiumUploadStatus, setPremiumUploadStatus] =
+    useState<UploadStatus>("idle");
+  const [premiumUploadProgress, setPremiumUploadProgress] = useState<
+    string | undefined
+  >(undefined);
 
   const loadSessions = useCallback(async (a: backendInterface) => {
     try {
       setLoadingSessions(true);
-      const [pvs, wps] = await Promise.all([
+      const [pvs, wps, premiums] = await Promise.all([
         a.getPVSessions(),
         a.getWattpilotSessions(),
+        (a as any).getPremiumSessions(),
       ]);
       setPVSessions(pvs);
       setWattpilotSessions(wps);
+      setPremiumSessions(premiums);
     } catch (err) {
       console.error(err);
       toast.error("Datensätze konnten nicht geladen werden");
@@ -386,7 +450,6 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
       id: analyticsId,
       ...computed,
       timestamp: BigInt(Date.now()),
-      // owner is overridden by backend (result with owner = caller); placeholder required
       owner: Principal.fromText("2vxsx-fae"),
     };
 
@@ -398,7 +461,6 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
       toast.error("Keine Verbindung zum Backend");
       return;
     }
-    // Accept .csv files or files with text/csv MIME type, or plain text
     if (
       !file.name.toLowerCase().endsWith(".csv") &&
       file.type !== "text/csv" &&
@@ -413,14 +475,9 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
       setPVUploadStatus("uploading");
       const csvText = await file.text();
       const id = crypto.randomUUID();
-
-      // Upload to backend -- this is the critical step
       await actor.addPVSession(id, file.name, csvText);
-
       const updatedPV = await actor.getPVSessions();
       setPVSessions(updatedPV);
-
-      // Analytics recomputation is best-effort; don't block success on it
       try {
         await recomputeAndSave(actor, updatedPV, wattpilotSessions);
       } catch (analyticsErr) {
@@ -429,11 +486,9 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
           analyticsErr,
         );
       }
-
       setPVUploadStatus("success");
-      toast.success(`"${file.name}" erfolgreich hochgeladen`);
+      toast.success(`„${file.name}" erfolgreich hochgeladen`);
       onDataUploaded?.();
-
       setTimeout(() => setPVUploadStatus("idle"), 3000);
     } catch (err) {
       console.error("PV upload failed:", err);
@@ -448,7 +503,6 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
       toast.error("Keine Verbindung zum Backend");
       return;
     }
-    // Accept .csv files or files with text/csv MIME type, or plain text
     if (
       !file.name.toLowerCase().endsWith(".csv") &&
       file.type !== "text/csv" &&
@@ -463,14 +517,9 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
       setWPUploadStatus("uploading");
       const csvText = await file.text();
       const id = crypto.randomUUID();
-
-      // Upload to backend -- this is the critical step
       await actor.addWattpilotSession(id, file.name, csvText);
-
       const updatedWP = await actor.getWattpilotSessions();
       setWattpilotSessions(updatedWP);
-
-      // Analytics recomputation is best-effort; don't block success on it
       try {
         await recomputeAndSave(actor, pvSessions, updatedWP);
       } catch (analyticsErr) {
@@ -479,17 +528,65 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
           analyticsErr,
         );
       }
-
       setWPUploadStatus("success");
-      toast.success(`"${file.name}" erfolgreich hochgeladen`);
+      toast.success(`„${file.name}" erfolgreich hochgeladen`);
       onDataUploaded?.();
-
       setTimeout(() => setWPUploadStatus("idle"), 3000);
     } catch (err) {
       console.error("Wattpilot upload failed:", err);
       setWPUploadStatus("error");
       toast.error("Fehler beim Hochladen der Wattpilot-Daten");
       setTimeout(() => setWPUploadStatus("idle"), 3000);
+    }
+  };
+
+  const handlePremiumUpload = async (file: File) => {
+    if (!actor) {
+      toast.error("Keine Verbindung zum Backend");
+      return;
+    }
+    if (
+      !file.name.toLowerCase().endsWith(".csv") &&
+      file.type !== "text/csv" &&
+      file.type !== "text/plain" &&
+      file.type !== ""
+    ) {
+      toast.error("Bitte eine .csv Datei hochladen");
+      return;
+    }
+
+    try {
+      setPremiumUploadStatus("uploading");
+      setPremiumUploadProgress(undefined);
+
+      const csvText = await file.text();
+      const chunks = splitIntoLineChunks(csvText, CHUNK_SIZE);
+      const id = crypto.randomUUID();
+      const total = chunks.length;
+
+      // Upload first chunk — creates the session
+      setPremiumUploadProgress(`1 / ${total}`);
+      await (actor as any).addPremiumSession(id, file.name, chunks[0]);
+
+      // Upload remaining chunks sequentially
+      for (let i = 1; i < chunks.length; i++) {
+        setPremiumUploadProgress(`${i + 1} / ${total}`);
+        await (actor as any).appendPremiumSessionData(id, chunks[i]);
+      }
+
+      const updated = await (actor as any).getPremiumSessions();
+      setPremiumSessions(updated);
+      setPremiumUploadProgress(undefined);
+      setPremiumUploadStatus("success");
+      toast.success(`„${file.name}" erfolgreich hochgeladen`);
+      onDataUploaded?.();
+      setTimeout(() => setPremiumUploadStatus("idle"), 3000);
+    } catch (err) {
+      console.error("Premium upload failed:", err);
+      setPremiumUploadProgress(undefined);
+      setPremiumUploadStatus("error");
+      toast.error("Fehler beim Hochladen der Premium-Daten");
+      setTimeout(() => setPremiumUploadStatus("idle"), 3000);
     }
   };
 
@@ -509,6 +606,13 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
     await recomputeAndSave(actor, pvSessions, updated);
   };
 
+  const handleDeletePremium = async (id: string) => {
+    if (!actor) return;
+    await actor.deleteSession(id, "premium");
+    const updated = premiumSessions.filter((s) => s.id !== id);
+    setPremiumSessions(updated);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -519,66 +623,201 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
           </h2>
         </div>
         <p className="text-xs font-mono text-muted-foreground ml-3">
-          CSV-Dateien aus deiner PV-Anlage und dem Wattpilot hochladen
+          CSV-Dateien hochladen und Datenquelle für das Dashboard auswählen
         </p>
       </div>
 
-      {/* Upload Areas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* PV Upload */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="bg-card border border-border rounded-lg p-5 space-y-5"
-        >
-          <Dropzone
-            type="pv"
-            onFileUpload={handlePVUpload}
-            uploadStatus={pvUploadStatus}
-            dataOcid="pv.dropzone"
-          />
-
-          <div>
-            <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">
-              Hochgeladene PV-Datensätze ({pvSessions.length})
-            </p>
-            <SessionList
-              sessions={pvSessions}
-              onDelete={handleDeletePV}
-              type="pv"
-              loading={loadingSessions}
-            />
-          </div>
-        </motion.div>
-
-        {/* Wattpilot Upload */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-card border border-border rounded-lg p-5 space-y-5"
-        >
-          <Dropzone
-            type="wattpilot"
-            onFileUpload={handleWattpilotUpload}
-            uploadStatus={wpUploadStatus}
-            dataOcid="wattpilot.dropzone"
-          />
-
-          <div>
-            <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">
-              Hochgeladene Wattpilot-Datensätze ({wattpilotSessions.length})
-            </p>
-            <SessionList
-              sessions={wattpilotSessions}
-              onDelete={handleDeleteWattpilot}
-              type="wattpilot"
-              loading={loadingSessions}
-            />
-          </div>
-        </motion.div>
+      {/* Mode Selector */}
+      <div className="bg-card border border-border rounded-lg p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <Zap className="w-4 h-4 text-primary" />
+          <p className="text-sm font-mono font-semibold text-foreground">
+            Datenquelle für Dashboard
+          </p>
+        </div>
+        <div data-ocid="upload.mode.toggle" className="flex gap-2">
+          <button
+            type="button"
+            data-ocid="upload.basic.toggle"
+            onClick={() => setMode("basic")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-md border text-sm font-mono transition-all",
+              mode === "basic"
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-secondary border-border text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Sun className="w-3.5 h-3.5" />
+            Basic
+          </button>
+          <button
+            type="button"
+            data-ocid="upload.premium.toggle"
+            onClick={() => setMode("premium")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-md border text-sm font-mono transition-all",
+              mode === "premium"
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-secondary border-border text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Star className="w-3.5 h-3.5" />
+            Premium
+          </button>
+        </div>
+        <p className="text-xs font-mono text-muted-foreground mt-2">
+          {mode === "basic"
+            ? "Dashboard verwendet PV- und Wattpilot-Daten (separate Dateien)."
+            : "Dashboard verwendet Premium-Daten (PV + Wattpilot in einer Datei, stundengenaue Tarife)."}
+        </p>
       </div>
+
+      {/* Upload Tabs */}
+      <Tabs defaultValue="basic" className="w-full">
+        <TabsList
+          data-ocid="upload.tab"
+          className="bg-secondary border border-border"
+        >
+          <TabsTrigger
+            data-ocid="upload.basic.tab"
+            value="basic"
+            className="font-mono text-xs"
+          >
+            <Sun className="w-3.5 h-3.5 mr-1.5" />
+            Basic
+            {(pvSessions.length > 0 || wattpilotSessions.length > 0) && (
+              <span className="ml-1.5 text-[10px] bg-primary/20 text-primary rounded-full px-1.5 py-0.5">
+                {pvSessions.length + wattpilotSessions.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            data-ocid="upload.premium.tab"
+            value="premium"
+            className="font-mono text-xs"
+          >
+            <Star className="w-3.5 h-3.5 mr-1.5" />
+            Premium
+            {premiumSessions.length > 0 && (
+              <span className="ml-1.5 text-[10px] bg-primary/20 text-primary rounded-full px-1.5 py-0.5">
+                {premiumSessions.length}
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Basic Tab */}
+        <TabsContent value="basic" className="mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* PV Upload */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+              className="bg-card border border-border rounded-lg p-5 space-y-5"
+            >
+              <Dropzone
+                type="pv"
+                onFileUpload={handlePVUpload}
+                uploadStatus={pvUploadStatus}
+                dataOcid="pv.dropzone"
+              />
+              <div>
+                <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">
+                  Hochgeladene PV-Datensätze ({pvSessions.length})
+                </p>
+                <SessionList
+                  sessions={pvSessions}
+                  onDelete={handleDeletePV}
+                  type="pv"
+                  loading={loadingSessions}
+                />
+              </div>
+            </motion.div>
+
+            {/* Wattpilot Upload */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-card border border-border rounded-lg p-5 space-y-5"
+            >
+              <Dropzone
+                type="wattpilot"
+                onFileUpload={handleWattpilotUpload}
+                uploadStatus={wpUploadStatus}
+                dataOcid="wattpilot.dropzone"
+              />
+              <div>
+                <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">
+                  Hochgeladene Wattpilot-Datensätze ({wattpilotSessions.length})
+                </p>
+                <SessionList
+                  sessions={wattpilotSessions}
+                  onDelete={handleDeleteWattpilot}
+                  type="wattpilot"
+                  loading={loadingSessions}
+                />
+              </div>
+            </motion.div>
+          </div>
+        </TabsContent>
+
+        {/* Premium Tab */}
+        <TabsContent value="premium" className="mt-4">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-5"
+          >
+            {/* Info Box */}
+            <div className="bg-secondary/40 border border-border rounded-lg p-4 flex gap-3">
+              <Star
+                className="w-4 h-4 text-primary flex-shrink-0 mt-0.5"
+                style={{ color: "oklch(0.72 0.16 280)" }}
+              />
+              <div className="space-y-1">
+                <p className="text-xs font-mono font-semibold text-foreground">
+                  Benutzerdefiniert Premium
+                </p>
+                <p className="text-xs font-mono text-muted-foreground leading-relaxed">
+                  Die Premium-Datei enthält PV- und Wattpilot-Daten in einer
+                  einzigen CSV mit 5-Minuten-Intervallen. Enthält: Direkt
+                  verbraucht, Batterie, Einspeisung, Netzbezug, PV-Produktion,
+                  Verbrauch, Wattpilot-Aufteilung (Netz/Batterie/PV), State of
+                  Charge.
+                </p>
+                <p className="text-xs font-mono text-muted-foreground">
+                  Tarife werden stundengenau berechnet (exakter Zeitstempel pro
+                  Zeile). Grosse Dateien werden automatisch in Teilpakete
+                  aufgeteilt und nacheinander hochgeladen.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-lg p-5 space-y-5">
+              <Dropzone
+                type="premium"
+                onFileUpload={handlePremiumUpload}
+                uploadStatus={premiumUploadStatus}
+                uploadProgress={premiumUploadProgress}
+                dataOcid="premium.dropzone"
+              />
+              <div>
+                <p className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">
+                  Hochgeladene Premium-Datensätze ({premiumSessions.length})
+                </p>
+                <SessionList
+                  sessions={premiumSessions}
+                  onDelete={handleDeletePremium}
+                  type="premium"
+                  loading={loadingSessions}
+                />
+              </div>
+            </div>
+          </motion.div>
+        </TabsContent>
+      </Tabs>
 
       {/* Info Box */}
       <motion.div
@@ -596,10 +835,10 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
               Hinweis zur Datenverarbeitung
             </p>
             <p className="text-xs font-mono text-muted-foreground leading-relaxed">
-              Nach dem Hochladen werden die Kennzahlen automatisch neu
-              berechnet. PV-Daten werden in Wh erwartet und automatisch in kWh
-              umgerechnet. Wattpilot-Daten (EV-Ladedaten) werden direkt in kWh
-              verarbeitet -- aufgeteilt nach PV-, Netz- und Batterieanteil.
+              Basic: PV-Daten in Wh werden automatisch in kWh umgerechnet.
+              Wattpilot-Daten werden direkt in kWh erwartet. — Premium: Alle
+              Wh-Werte werden in kWh umgerechnet. State of Charge bleibt in %.
+              Tarife werden stundengenau berechnet.
             </p>
           </div>
         </div>

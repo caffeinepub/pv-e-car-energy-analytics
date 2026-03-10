@@ -55,14 +55,19 @@ import { toast } from "sonner";
 import type { AnalyticsResult, TarifPeriode } from "../backend.d.ts";
 import { useCo2 } from "../contexts/Co2Context";
 import { useCurrency } from "../contexts/CurrencyContext";
+import { useDataMode } from "../contexts/DataModeContext";
 import { useActor } from "../hooks/useActor";
 import {
   type PVDataRow,
+  type PremiumDataRow,
   type WattpilotDataRow,
   aggregateByDay,
   aggregateByMonth,
   aggregateByYear,
   computeAnalytics,
+  filterPremiumByDay,
+  filterPremiumByMonth,
+  filterPremiumByYear,
   filterRowsByDay,
   filterRowsByMonth,
   filterRowsByYear,
@@ -70,13 +75,19 @@ import {
   filterWattpilotByMonth,
   filterWattpilotByYear,
   getAvailableDays,
+  getAvailableDaysPremium,
   getAvailableMonths,
+  getAvailableMonthsPremium,
   getAvailableYears,
+  getAvailableYearsPremium,
   getTimeSeriesData,
   parsePVCSV,
+  parsePremiumCSV,
   parseWattpilotCSV,
+  premiumToPVRows,
+  premiumToWattpilotRows,
 } from "../utils/analytics";
-import { computeRevenue } from "../utils/tariff";
+import { computeRevenue, computeRevenuePremium } from "../utils/tariff";
 import MetricCard from "./MetricCard";
 
 const CHART_COLORS = {
@@ -127,10 +138,12 @@ export default function Dashboard() {
   const { actor, isFetching: actorFetching } = useActor();
   const { currency } = useCurrency();
   const { co2Faktor } = useCo2();
+  const { mode } = useDataMode();
 
   // Raw stored data
   const [allPVRows, setAllPVRows] = useState<PVDataRow[]>([]);
   const [allWPRows, setAllWPRows] = useState<WattpilotDataRow[]>([]);
+  const [allPremiumRows, setAllPremiumRows] = useState<PremiumDataRow[]>([]);
   const [allTarifPerioden, setAllTarifPerioden] = useState<TarifPeriode[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingDemo, setLoadingDemo] = useState(false);
@@ -164,46 +177,62 @@ export default function Dashboard() {
     if (!actor) return;
     try {
       setLoading(true);
-      const [pvSessions, wpSessions, tarifPerioden] = await Promise.all([
-        actor.getPVSessions(),
-        actor.getWattpilotSessions(),
-        actor.getTarifPerioden(),
-      ]);
-
-      if (pvSessions.length > 0) {
-        const rows = pvSessions.flatMap((s) => parsePVCSV(s.data));
-        setAllPVRows(rows);
-      } else {
-        setAllPVRows([]);
-      }
-      if (wpSessions.length > 0) {
-        const rows = wpSessions.flatMap((s) => parseWattpilotCSV(s.data));
-        setAllWPRows(rows);
-      } else {
-        setAllWPRows([]);
-      }
+      const tarifPerioden = await actor.getTarifPerioden();
       setAllTarifPerioden(tarifPerioden);
 
-      // Detect demo session IDs
-      const demoPV = pvSessions.find(
-        (s) => s.name === "Demo PV-Daten 2024-2025",
-      );
-      const demoWP = wpSessions.find(
-        (s) => s.name === "Demo Wattpilot-Daten 2024-2025",
-      );
-      const demoTarif = tarifPerioden.find(
-        (t) => t.id === "demo-tarif-2024-2025",
-      );
-      setDemoPVSessionId(demoPV ? demoPV.id : null);
-      setDemoWPSessionId(demoWP ? demoWP.id : null);
-      setHasDemoTarif(!!demoTarif);
+      if (mode === "premium") {
+        const premiumSessions = await (actor as any).getPremiumSessions();
+        if (premiumSessions.length > 0) {
+          const rows = premiumSessions.flatMap((s) => parsePremiumCSV(s.data));
+          setAllPremiumRows(rows);
+          setAllPVRows(premiumToPVRows(rows));
+          setAllWPRows(premiumToWattpilotRows(rows));
+        } else {
+          setAllPremiumRows([]);
+          setAllPVRows([]);
+          setAllWPRows([]);
+        }
+        setDemoPVSessionId(null);
+        setDemoWPSessionId(null);
+        setHasDemoTarif(false);
+      } else {
+        const [pvSessions, wpSessions] = await Promise.all([
+          actor.getPVSessions(),
+          actor.getWattpilotSessions(),
+        ]);
+        if (pvSessions.length > 0) {
+          const rows = pvSessions.flatMap((s) => parsePVCSV(s.data));
+          setAllPVRows(rows);
+        } else {
+          setAllPVRows([]);
+        }
+        if (wpSessions.length > 0) {
+          const rows = wpSessions.flatMap((s) => parseWattpilotCSV(s.data));
+          setAllWPRows(rows);
+        } else {
+          setAllWPRows([]);
+        }
+        setAllPremiumRows([]);
+        const demoPV = pvSessions.find(
+          (s) => s.name === "Demo PV-Daten 2024-2025",
+        );
+        const demoWP = wpSessions.find(
+          (s) => s.name === "Demo Wattpilot-Daten 2024-2025",
+        );
+        const demoTarif = tarifPerioden.find(
+          (t) => t.id === "demo-tarif-2024-2025",
+        );
+        setDemoPVSessionId(demoPV ? demoPV.id : null);
+        setDemoWPSessionId(demoWP ? demoWP.id : null);
+        setHasDemoTarif(!!demoTarif);
+      }
     } catch (err) {
       console.error("Fehler beim Laden:", err);
       toast.error("Daten konnten nicht geladen werden");
     } finally {
       setLoading(false);
     }
-  }, [actor]);
+  }, [actor, mode]);
 
   useEffect(() => {
     if (!actorFetching && actor) {
@@ -231,14 +260,26 @@ export default function Dashboard() {
   // ---------------------------------------------------------------------------
   // Available options for navigation
   // ---------------------------------------------------------------------------
-  const availableDays = useMemo(() => getAvailableDays(allPVRows), [allPVRows]);
+  const availableDays = useMemo(
+    () =>
+      mode === "premium"
+        ? getAvailableDaysPremium(allPremiumRows)
+        : getAvailableDays(allPVRows),
+    [mode, allPVRows, allPremiumRows],
+  );
   const availableMonths = useMemo(
-    () => getAvailableMonths(allPVRows),
-    [allPVRows],
+    () =>
+      mode === "premium"
+        ? getAvailableMonthsPremium(allPremiumRows)
+        : getAvailableMonths(allPVRows),
+    [mode, allPVRows, allPremiumRows],
   );
   const availableYears = useMemo(
-    () => getAvailableYears(allPVRows),
-    [allPVRows],
+    () =>
+      mode === "premium"
+        ? getAvailableYearsPremium(allPremiumRows)
+        : getAvailableYears(allPVRows),
+    [mode, allPVRows, allPremiumRows],
   );
 
   // ---------------------------------------------------------------------------
@@ -273,13 +314,44 @@ export default function Dashboard() {
   }, [filteredPVRows, filteredWPRows]);
 
   // ---------------------------------------------------------------------------
+  // Premium filtered rows for revenue computation
+  // ---------------------------------------------------------------------------
+  const filteredPremiumRows = useMemo(() => {
+    if (mode !== "premium") return [];
+    if (periodMode === "tag" && selectedDay)
+      return filterPremiumByDay(allPremiumRows, selectedDay);
+    if (periodMode === "monat" && selectedMonth)
+      return filterPremiumByMonth(allPremiumRows, selectedMonth);
+    if (periodMode === "jahr" && selectedYear)
+      return filterPremiumByYear(allPremiumRows, selectedYear);
+    return allPremiumRows;
+  }, [
+    mode,
+    periodMode,
+    selectedDay,
+    selectedMonth,
+    selectedYear,
+    allPremiumRows,
+  ]);
+
+  // ---------------------------------------------------------------------------
   // Revenue computation for the current period
   // ---------------------------------------------------------------------------
   const revenue = useMemo(() => {
-    if (filteredPVRows.length === 0 || allTarifPerioden.length === 0)
-      return null;
+    if (allTarifPerioden.length === 0) return null;
+    if (mode === "premium") {
+      if (filteredPremiumRows.length === 0) return null;
+      return computeRevenuePremium(filteredPremiumRows, allTarifPerioden);
+    }
+    if (filteredPVRows.length === 0) return null;
     return computeRevenue(filteredPVRows, allTarifPerioden, filteredWPRows);
-  }, [filteredPVRows, allTarifPerioden, filteredWPRows]);
+  }, [
+    mode,
+    filteredPVRows,
+    filteredPremiumRows,
+    allTarifPerioden,
+    filteredWPRows,
+  ]);
 
   // ---------------------------------------------------------------------------
   // Chart data for the current period
@@ -843,6 +915,18 @@ export default function Dashboard() {
             </span>
           )}
 
+          {/* Data mode badge */}
+          <span
+            data-ocid="dashboard.mode.toggle"
+            className={`ml-auto px-2.5 py-0.5 text-xs font-mono rounded-full border ${
+              mode === "premium"
+                ? "bg-purple-950/40 border-purple-700/50 text-purple-300"
+                : "bg-secondary border-border text-muted-foreground"
+            }`}
+          >
+            {mode === "premium" ? "★ Premium" : "Basic"}
+          </span>
+
           {/* Demo data delete button — only shown when demo data is loaded */}
           {isDemoLoaded && (
             <AlertDialog>
@@ -1211,6 +1295,82 @@ export default function Dashboard() {
                     )}
                   </AnimatePresence>
                 </div>
+                {/* Battery section - Premium only */}
+                {mode === "premium" && allPremiumRows.length > 0 && (
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      data-ocid="dashboard.batterie.toggle"
+                      onClick={() => toggleGroup("batterie")}
+                      className="flex items-center gap-2 w-full text-left group"
+                    >
+                      <div className="w-1 h-3 rounded-full bg-primary/30" />
+                      <p className="text-xs font-mono font-semibold text-muted-foreground uppercase tracking-wider flex-1">
+                        Batterie
+                      </p>
+                      <ChevronDown
+                        className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${collapsedGroups.has("batterie") ? "-rotate-90" : ""}`}
+                      />
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {!collapsedGroups.has("batterie") && (
+                        <motion.div
+                          key="batterie-content"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.25 }}
+                          style={{ overflow: "hidden" }}
+                          className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-stretch"
+                        >
+                          <MetricCard
+                            label="Batterie bezogen"
+                            value={filteredPremiumRows
+                              .reduce((s, r) => s + r.energieBatterieBezogen, 0)
+                              .toFixed(1)}
+                            unit="kWh"
+                            description="Energie aus Batterie bezogen"
+                            icon={<ArrowDownLeft className="w-4 h-4" />}
+                            accentColor="ev"
+                            dataOcid="dashboard.card"
+                          />
+                          <MetricCard
+                            label="Batterie gespeichert"
+                            value={filteredPremiumRows
+                              .reduce(
+                                (s, r) => s + r.energieBatterieGespeichert,
+                                0,
+                              )
+                              .toFixed(1)}
+                            unit="kWh"
+                            description="Energie in Batterie gespeichert"
+                            icon={<ArrowUpRight className="w-4 h-4" />}
+                            accentColor="grid-feed"
+                            dataOcid="dashboard.card"
+                          />
+                          <MetricCard
+                            label="State of Charge (Ø)"
+                            value={
+                              filteredPremiumRows.length > 0
+                                ? (
+                                    filteredPremiumRows.reduce(
+                                      (s, r) => s + r.stateOfCharge,
+                                      0,
+                                    ) / filteredPremiumRows.length
+                                  ).toFixed(1)
+                                : "0"
+                            }
+                            unit="%"
+                            description="Durchschnittlicher Batterieladezustand"
+                            icon={<Activity className="w-4 h-4" />}
+                            accentColor="self"
+                            dataOcid="dashboard.card"
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
               </div>
             )}
           </section>

@@ -35,6 +35,7 @@ import JahresVergleich from "./components/JahresVergleich";
 import TarifVerwaltung from "./components/TarifVerwaltung";
 import { Co2Provider, useCo2 } from "./contexts/Co2Context";
 import { CurrencyProvider } from "./contexts/CurrencyContext";
+import { DataModeProvider } from "./contexts/DataModeContext";
 import { useActor } from "./hooks/useActor";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 
@@ -320,142 +321,146 @@ function MainApp({ userProfile }: MainAppProps) {
   };
 
   return (
-    <CurrencyProvider>
-      <Co2Provider initialCo2Faktor={userProfile.co2Faktor}>
-        <div className="min-h-screen bg-background flex flex-col">
-          {/* Header */}
-          <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
-            <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-sm bg-primary flex items-center justify-center shadow-glow">
-                  <Zap
-                    className="w-4 h-4 text-primary-foreground"
-                    strokeWidth={2.5}
+    <DataModeProvider>
+      <CurrencyProvider>
+        <Co2Provider initialCo2Faktor={userProfile.co2Faktor}>
+          <div className="min-h-screen bg-background flex flex-col">
+            {/* Header */}
+            <header className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
+              <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-sm bg-primary flex items-center justify-center shadow-glow">
+                    <Zap
+                      className="w-4 h-4 text-primary-foreground"
+                      strokeWidth={2.5}
+                    />
+                  </div>
+                  <div>
+                    <h1 className="font-display text-base font-semibold tracking-tight text-foreground leading-none">
+                      PV & E-Car Analytics
+                    </h1>
+                    <p className="text-xs text-muted-foreground mt-0.5 font-mono truncate max-w-[180px] sm:max-w-none">
+                      {userProfile.pvName}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-secondary border border-border">
+                    <div className="w-1.5 h-1.5 rounded-full bg-energy-pv animate-pulse-glow" />
+                    <span className="text-xs font-mono text-muted-foreground">
+                      LIVE
+                    </span>
+                  </div>
+
+                  <Button
+                    data-ocid="header.logout_button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleLogout}
+                    className="h-8 px-2.5 text-muted-foreground hover:text-foreground font-mono text-xs gap-1.5"
+                    title="Abmelden"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Abmelden</span>
+                  </Button>
+                </div>
+              </div>
+            </header>
+
+            {/* Main Content */}
+            <main className="flex-1 container mx-auto px-4 py-6">
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="mb-6 bg-secondary border border-border h-10 p-1 flex-wrap gap-1">
+                  <TabsTrigger
+                    value="dashboard"
+                    data-ocid="nav.tab"
+                    className="flex items-center gap-2 text-sm font-mono data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    Dashboard
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="upload"
+                    data-ocid="upload.tab"
+                    className="flex items-center gap-2 text-sm font-mono data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    Daten hochladen
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="tarife"
+                    data-ocid="tarife.tab"
+                    className="flex items-center gap-2 text-sm font-mono data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  >
+                    <Receipt className="w-3.5 h-3.5" />
+                    Tarife
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="vergleich"
+                    data-ocid="vergleich.tab"
+                    className="flex items-center gap-2 text-sm font-mono data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  >
+                    <GitCompareArrows className="w-3.5 h-3.5" />
+                    Vergleich
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="einstellungen"
+                    data-ocid="settings.tab"
+                    className="flex items-center gap-2 text-sm font-mono data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    Einstellungen
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="dashboard" className="mt-0">
+                  <Dashboard />
+                </TabsContent>
+
+                <TabsContent value="upload" className="mt-0">
+                  <DataUpload
+                    onDataUploaded={() => setActiveTab("dashboard")}
                   />
-                </div>
-                <div>
-                  <h1 className="font-display text-base font-semibold tracking-tight text-foreground leading-none">
-                    PV & E-Car Analytics
-                  </h1>
-                  <p className="text-xs text-muted-foreground mt-0.5 font-mono truncate max-w-[180px] sm:max-w-none">
-                    {userProfile.pvName}
-                  </p>
-                </div>
+                </TabsContent>
+
+                <TabsContent value="tarife" className="mt-0">
+                  <TarifVerwaltung />
+                </TabsContent>
+
+                <TabsContent value="vergleich" className="mt-0">
+                  <JahresVergleich />
+                </TabsContent>
+
+                <TabsContent value="einstellungen" className="mt-0">
+                  <SettingsPanel userProfile={userProfile} />
+                </TabsContent>
+              </Tabs>
+            </main>
+
+            {/* Footer */}
+            <footer className="border-t border-border py-4">
+              <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+                <p className="text-xs font-mono text-muted-foreground">
+                  © {new Date().getFullYear()} PV & E-Car Analytics
+                </p>
+                <p className="text-xs font-mono text-muted-foreground">
+                  Built with love using{" "}
+                  <a
+                    href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    caffeine.ai
+                  </a>
+                </p>
               </div>
-
-              <div className="flex items-center gap-2">
-                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-secondary border border-border">
-                  <div className="w-1.5 h-1.5 rounded-full bg-energy-pv animate-pulse-glow" />
-                  <span className="text-xs font-mono text-muted-foreground">
-                    LIVE
-                  </span>
-                </div>
-
-                <Button
-                  data-ocid="header.logout_button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="h-8 px-2.5 text-muted-foreground hover:text-foreground font-mono text-xs gap-1.5"
-                  title="Abmelden"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Abmelden</span>
-                </Button>
-              </div>
-            </div>
-          </header>
-
-          {/* Main Content */}
-          <main className="flex-1 container mx-auto px-4 py-6">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="mb-6 bg-secondary border border-border h-10 p-1 flex-wrap gap-1">
-                <TabsTrigger
-                  value="dashboard"
-                  data-ocid="nav.tab"
-                  className="flex items-center gap-2 text-sm font-mono data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  <BarChart3 className="w-3.5 h-3.5" />
-                  Dashboard
-                </TabsTrigger>
-                <TabsTrigger
-                  value="upload"
-                  data-ocid="upload.tab"
-                  className="flex items-center gap-2 text-sm font-mono data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  Daten hochladen
-                </TabsTrigger>
-                <TabsTrigger
-                  value="tarife"
-                  data-ocid="tarife.tab"
-                  className="flex items-center gap-2 text-sm font-mono data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  <Receipt className="w-3.5 h-3.5" />
-                  Tarife
-                </TabsTrigger>
-                <TabsTrigger
-                  value="vergleich"
-                  data-ocid="vergleich.tab"
-                  className="flex items-center gap-2 text-sm font-mono data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  <GitCompareArrows className="w-3.5 h-3.5" />
-                  Vergleich
-                </TabsTrigger>
-                <TabsTrigger
-                  value="einstellungen"
-                  data-ocid="settings.tab"
-                  className="flex items-center gap-2 text-sm font-mono data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                  Einstellungen
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="dashboard" className="mt-0">
-                <Dashboard />
-              </TabsContent>
-
-              <TabsContent value="upload" className="mt-0">
-                <DataUpload onDataUploaded={() => setActiveTab("dashboard")} />
-              </TabsContent>
-
-              <TabsContent value="tarife" className="mt-0">
-                <TarifVerwaltung />
-              </TabsContent>
-
-              <TabsContent value="vergleich" className="mt-0">
-                <JahresVergleich />
-              </TabsContent>
-
-              <TabsContent value="einstellungen" className="mt-0">
-                <SettingsPanel userProfile={userProfile} />
-              </TabsContent>
-            </Tabs>
-          </main>
-
-          {/* Footer */}
-          <footer className="border-t border-border py-4">
-            <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-              <p className="text-xs font-mono text-muted-foreground">
-                © {new Date().getFullYear()} PV & E-Car Analytics
-              </p>
-              <p className="text-xs font-mono text-muted-foreground">
-                Built with love using{" "}
-                <a
-                  href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  caffeine.ai
-                </a>
-              </p>
-            </div>
-          </footer>
-        </div>
-      </Co2Provider>
-    </CurrencyProvider>
+            </footer>
+          </div>
+        </Co2Provider>
+      </CurrencyProvider>
+    </DataModeProvider>
   );
 }
 
