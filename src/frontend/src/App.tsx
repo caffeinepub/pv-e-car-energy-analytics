@@ -36,14 +36,52 @@ import TarifVerwaltung from "./components/TarifVerwaltung";
 import { Co2Provider, useCo2 } from "./contexts/Co2Context";
 import { CurrencyProvider } from "./contexts/CurrencyContext";
 import { DataModeProvider } from "./contexts/DataModeContext";
+import { LanguageProvider, useLanguage } from "./contexts/LanguageContext";
 import { useActor } from "./hooks/useActor";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
+
+// ---------------------------------------------------------------------------
+// Language Switcher
+// ---------------------------------------------------------------------------
+function LanguageSwitcher({ className = "" }: { className?: string }) {
+  const { lang, setLang } = useLanguage();
+  return (
+    <div
+      className={`flex items-center gap-0.5 ${className}`}
+      data-ocid="header.language_toggle"
+    >
+      <button
+        type="button"
+        onClick={() => setLang("de")}
+        className={`text-xs font-mono px-2 py-1 rounded transition-colors ${
+          lang === "de"
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        DE
+      </button>
+      <button
+        type="button"
+        onClick={() => setLang("en")}
+        className={`text-xs font-mono px-2 py-1 rounded transition-colors ${
+          lang === "en"
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        EN
+      </button>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Login Screen
 // ---------------------------------------------------------------------------
 function LoginScreen() {
   const { login, isLoggingIn, isInitializing } = useInternetIdentity();
+  const { t } = useLanguage();
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
@@ -55,6 +93,11 @@ function LoginScreen() {
             "radial-gradient(ellipse 80% 60% at 50% 0%, oklch(0.22 0.04 260 / 0.6) 0%, transparent 70%)",
         }}
       />
+
+      {/* Language switcher top right */}
+      <div className="fixed top-4 right-4 z-50">
+        <LanguageSwitcher />
+      </div>
 
       <motion.div
         initial={{ opacity: 0, y: 24 }}
@@ -80,11 +123,10 @@ function LoginScreen() {
         <Card className="bg-card border-border shadow-2xl">
           <CardHeader className="text-center pb-4">
             <CardTitle className="font-display text-2xl text-foreground">
-              PV &amp; E-Car Analytics
+              {t("loginTitle")}
             </CardTitle>
             <CardDescription className="font-mono text-sm text-muted-foreground leading-relaxed mt-2">
-              Melde dich mit deiner Internet Identity an, um deine Energiedaten
-              sicher zu verwalten.
+              {t("loginDescription")}
             </CardDescription>
           </CardHeader>
 
@@ -93,8 +135,7 @@ function LoginScreen() {
             <div className="flex items-center gap-2.5 p-3 rounded-md bg-secondary/60 border border-border">
               <ShieldCheck className="w-4 h-4 text-primary flex-shrink-0" />
               <p className="text-xs font-mono text-muted-foreground">
-                Deine Daten sind verschlüsselt und ausschliesslich deiner
-                Internet Identity zugeordnet.
+                {t("loginSecurity")}
               </p>
             </div>
 
@@ -107,34 +148,22 @@ function LoginScreen() {
               {isLoggingIn ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Anmeldung läuft…
+                  {t("loginLoggingIn")}
                 </>
               ) : (
                 <>
                   <ShieldCheck className="w-4 h-4 mr-2" />
-                  Mit Internet Identity anmelden
+                  {t("loginButton")}
                 </>
               )}
             </Button>
-
-            <p className="text-center text-xs font-mono text-muted-foreground">
-              Noch keine Internet Identity?{" "}
-              <a
-                href="https://identity.ic0.app"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                Jetzt erstellen
-              </a>
-            </p>
           </CardContent>
         </Card>
       </motion.div>
 
       {/* Footer */}
       <p className="relative z-10 mt-8 text-xs font-mono text-muted-foreground">
-        © {new Date().getFullYear()}. Erstellt mit{" "}
+        © {new Date().getFullYear()}. {t("footerBuiltWith")}{" "}
         <a
           href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
           target="_blank"
@@ -159,27 +188,28 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
   const { actor } = useActor();
   const [pvName, setPvName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { t } = useLanguage();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = pvName.trim();
     if (!trimmed) {
-      toast.error("Bitte gib einen Namen für deine PV-Anlage ein.");
+      toast.error(t("registerErrorName"));
       return;
     }
     if (!actor) {
-      toast.error("Verbindung zum Backend nicht verfügbar.");
+      toast.error(t("registerErrorNoActor"));
       return;
     }
 
     try {
       setIsSubmitting(true);
       await actor.registerUser(trimmed);
-      toast.success("Registrierung erfolgreich!");
+      toast.success(t("registerSuccess"));
       onRegistered();
     } catch (err) {
       console.error("Registration failed:", err);
-      toast.error("Registrierung fehlgeschlagen. Bitte versuche es erneut.");
+      toast.error(t("registerError"));
     } finally {
       setIsSubmitting(false);
     }
@@ -195,6 +225,11 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
             "radial-gradient(ellipse 80% 60% at 50% 0%, oklch(0.22 0.04 260 / 0.6) 0%, transparent 70%)",
         }}
       />
+
+      {/* Language switcher top right */}
+      <div className="fixed top-4 right-4 z-50">
+        <LanguageSwitcher />
+      </div>
 
       <motion.div
         initial={{ opacity: 0, y: 24 }}
@@ -220,11 +255,10 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
         <Card className="bg-card border-border shadow-2xl">
           <CardHeader className="pb-4">
             <CardTitle className="font-display text-xl text-foreground">
-              Willkommen! Richte dein Konto ein.
+              {t("registerTitle")}
             </CardTitle>
             <CardDescription className="font-mono text-sm text-muted-foreground mt-1">
-              Gib deiner PV-Anlage einen Namen, damit deine Daten klar
-              zugeordnet werden können.
+              {t("registerDescription")}
             </CardDescription>
           </CardHeader>
 
@@ -235,13 +269,13 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
                   htmlFor="pv-name"
                   className="text-sm font-mono text-foreground"
                 >
-                  Name der PV-Anlage
+                  {t("registerPvLabel")}
                 </Label>
                 <Input
                   id="pv-name"
                   data-ocid="register.input"
                   type="text"
-                  placeholder="z.B. Dachanlage Süd"
+                  placeholder={t("registerPvPlaceholder")}
                   value={pvName}
                   onChange={(e) => setPvName(e.target.value)}
                   required
@@ -259,12 +293,12 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Wird gespeichert…
+                    {t("registerSaving")}
                   </>
                 ) : (
                   <>
                     <Zap className="w-4 h-4 mr-2" />
-                    Registrieren
+                    {t("registerButton")}
                   </>
                 )}
               </Button>
@@ -275,7 +309,7 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
 
       {/* Footer */}
       <p className="relative z-10 mt-8 text-xs font-mono text-muted-foreground">
-        © {new Date().getFullYear()}. Erstellt mit{" "}
+        © {new Date().getFullYear()}. {t("footerBuiltWith")}{" "}
         <a
           href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
           target="_blank"
@@ -293,12 +327,13 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
 // Loading Screen
 // ---------------------------------------------------------------------------
 function LoadingScreen() {
+  const { t } = useLanguage();
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
       <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
         <Loader2 className="w-6 h-6 text-primary animate-spin" />
       </div>
-      <p className="text-sm font-mono text-muted-foreground">Wird geladen…</p>
+      <p className="text-sm font-mono text-muted-foreground">{t("loading")}</p>
     </div>
   );
 }
@@ -314,6 +349,7 @@ function MainApp({ userProfile }: MainAppProps) {
   const { clear } = useInternetIdentity();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>("dashboard");
+  const { t } = useLanguage();
 
   const handleLogout = () => {
     clear();
@@ -349,9 +385,11 @@ function MainApp({ userProfile }: MainAppProps) {
                   <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-secondary border border-border">
                     <div className="w-1.5 h-1.5 rounded-full bg-energy-pv animate-pulse-glow" />
                     <span className="text-xs font-mono text-muted-foreground">
-                      LIVE
+                      {t("live")}
                     </span>
                   </div>
+
+                  <LanguageSwitcher />
 
                   <Button
                     data-ocid="header.logout_button"
@@ -359,10 +397,10 @@ function MainApp({ userProfile }: MainAppProps) {
                     size="sm"
                     onClick={handleLogout}
                     className="h-8 px-2.5 text-muted-foreground hover:text-foreground font-mono text-xs gap-1.5"
-                    title="Abmelden"
+                    title={t("logout")}
                   >
                     <LogOut className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Abmelden</span>
+                    <span className="hidden sm:inline">{t("logout")}</span>
                   </Button>
                 </div>
               </div>
@@ -378,7 +416,7 @@ function MainApp({ userProfile }: MainAppProps) {
                     className="flex items-center gap-2 text-sm font-mono data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   >
                     <BarChart3 className="w-3.5 h-3.5" />
-                    Dashboard
+                    {t("tabDashboard")}
                   </TabsTrigger>
                   <TabsTrigger
                     value="upload"
@@ -386,7 +424,7 @@ function MainApp({ userProfile }: MainAppProps) {
                     className="flex items-center gap-2 text-sm font-mono data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   >
                     <Upload className="w-3.5 h-3.5" />
-                    Daten hochladen
+                    {t("tabUpload")}
                   </TabsTrigger>
                   <TabsTrigger
                     value="tarife"
@@ -394,7 +432,7 @@ function MainApp({ userProfile }: MainAppProps) {
                     className="flex items-center gap-2 text-sm font-mono data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   >
                     <Receipt className="w-3.5 h-3.5" />
-                    Tarife
+                    {t("tabTarife")}
                   </TabsTrigger>
                   <TabsTrigger
                     value="vergleich"
@@ -402,7 +440,7 @@ function MainApp({ userProfile }: MainAppProps) {
                     className="flex items-center gap-2 text-sm font-mono data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   >
                     <GitCompareArrows className="w-3.5 h-3.5" />
-                    Vergleich
+                    {t("tabVergleich")}
                   </TabsTrigger>
                   <TabsTrigger
                     value="einstellungen"
@@ -410,7 +448,7 @@ function MainApp({ userProfile }: MainAppProps) {
                     className="flex items-center gap-2 text-sm font-mono data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   >
                     <Settings className="w-3.5 h-3.5" />
-                    Einstellungen
+                    {t("tabEinstellungen")}
                   </TabsTrigger>
                 </TabsList>
 
@@ -445,7 +483,7 @@ function MainApp({ userProfile }: MainAppProps) {
                   © {new Date().getFullYear()} PV & E-Car Analytics
                 </p>
                 <p className="text-xs font-mono text-muted-foreground">
-                  Built with love using{" "}
+                  {t("footerBuiltWith")}{" "}
                   <a
                     href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
                     target="_blank"
@@ -474,14 +512,12 @@ interface SettingsPanelProps {
 function Co2SettingsCard() {
   const { co2Faktor, setCo2Faktor, saveCo2Faktor, isUpdating } = useCo2();
   const [localValue, setLocalValue] = useState<string>(co2Faktor.toFixed(3));
+  const { t } = useLanguage();
 
-  // Sync local input when context value changes externally
   const handleSave = async () => {
     const parsed = Number.parseFloat(localValue);
     if (Number.isNaN(parsed) || parsed < 0 || parsed > 2) {
-      toast.error(
-        "Ungültiger CO₂-Faktor. Bitte einen Wert zwischen 0 und 2 eingeben.",
-      );
+      toast.error(t("settingsCo2Invalid"));
       return;
     }
     setCo2Faktor(parsed);
@@ -493,11 +529,10 @@ function Co2SettingsCard() {
       <CardHeader className="pb-3">
         <CardTitle className="font-display text-base text-foreground flex items-center gap-2">
           <Leaf className="w-4 h-4 text-energy-pv" />
-          CO₂-Faktor
+          {t("settingsCo2Title")}
         </CardTitle>
         <CardDescription className="font-mono text-xs text-muted-foreground">
-          Gramm CO₂ pro verbrauchter kWh (Strommix). Standardwert für Schweizer
-          Strommix: 0.128 kg/kWh.
+          {t("settingsCo2Description")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -507,7 +542,7 @@ function Co2SettingsCard() {
               htmlFor="co2-faktor"
               className="text-xs font-mono text-muted-foreground mb-1.5 block"
             >
-              kg CO₂/kWh
+              {t("settingsCo2Label")}
             </Label>
             <Input
               id="co2-faktor"
@@ -532,10 +567,10 @@ function Co2SettingsCard() {
               {isUpdating ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                  Speichern…
+                  {t("saving")}
                 </>
               ) : (
-                "Speichern"
+                t("save")
               )}
             </Button>
           </div>
@@ -546,6 +581,7 @@ function Co2SettingsCard() {
 }
 
 function SettingsPanel({ userProfile }: SettingsPanelProps) {
+  const { t } = useLanguage();
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -558,16 +594,16 @@ function SettingsPanel({ userProfile }: SettingsPanelProps) {
       <Card className="bg-card border-border">
         <CardHeader className="pb-3">
           <CardTitle className="font-display text-base text-foreground">
-            Profil
+            {t("settingsProfile")}
           </CardTitle>
           <CardDescription className="font-mono text-xs text-muted-foreground">
-            Deine Kontoinformationen
+            {t("settingsProfileDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between py-2 border-b border-border">
             <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
-              PV-Anlage
+              {t("settingsPvAnlage")}
             </span>
             <span className="text-sm font-mono text-foreground font-medium">
               {userProfile.pvName}
@@ -575,7 +611,7 @@ function SettingsPanel({ userProfile }: SettingsPanelProps) {
           </div>
           <div className="flex items-start justify-between py-2">
             <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
-              Principal
+              {t("settingsPrincipal")}
             </span>
             <span className="text-xs font-mono text-muted-foreground text-right break-all max-w-[220px]">
               {userProfile.principal.toString()}
@@ -588,10 +624,10 @@ function SettingsPanel({ userProfile }: SettingsPanelProps) {
       <Card className="bg-card border-border">
         <CardHeader className="pb-3">
           <CardTitle className="font-display text-base text-foreground">
-            Anzeigewährung
+            {t("settingsCurrency")}
           </CardTitle>
           <CardDescription className="font-mono text-xs text-muted-foreground">
-            Wähle die Währung für alle Kosten- und Ertragsanzeigen.
+            {t("settingsCurrencyDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -608,7 +644,7 @@ function SettingsPanel({ userProfile }: SettingsPanelProps) {
 // ---------------------------------------------------------------------------
 // Root App — Auth Gate
 // ---------------------------------------------------------------------------
-export default function App() {
+function AppInner() {
   const { identity, isInitializing, loginStatus } = useInternetIdentity();
   const { actor, isFetching: actorFetching } = useActor();
 
@@ -698,5 +734,13 @@ export default function App() {
         }}
       />
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      <AppInner />
+    </LanguageProvider>
   );
 }
