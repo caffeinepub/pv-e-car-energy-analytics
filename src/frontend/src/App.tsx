@@ -105,16 +105,14 @@ function LoginScreen() {
   return (
     <div className="min-h-screen relative flex flex-col lg:flex-row">
       {/* Full-screen background image */}
-      <div
-        className="fixed inset-0 z-0"
-        style={{
-          backgroundImage:
-            "url('/assets/generated/startseite-hero.dim_1600x900.jpg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-      />
+      <div className="fixed inset-0 z-0 overflow-hidden">
+        <img
+          src="/assets/generated/startseite-hero.dim_1600x900.jpg"
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          aria-hidden="true"
+        />
+      </div>
       {/* Bright light overlay */}
       <div className="fixed inset-0 z-0 bg-white/60" />
 
@@ -290,16 +288,14 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
   return (
     <div className="min-h-screen relative flex flex-col items-center justify-center p-4">
       {/* Full-screen background image */}
-      <div
-        className="fixed inset-0 z-0"
-        style={{
-          backgroundImage:
-            "url('/assets/generated/startseite-hero.dim_1600x900.jpg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-        }}
-      />
+      <div className="fixed inset-0 z-0 overflow-hidden">
+        <img
+          src="/assets/generated/startseite-hero.dim_1600x900.jpg"
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          aria-hidden="true"
+        />
+      </div>
       <div className="fixed inset-0 z-0 bg-white/65" />
 
       {/* Language switcher */}
