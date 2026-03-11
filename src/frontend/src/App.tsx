@@ -107,14 +107,14 @@ function LoginScreen() {
       {/* Full-screen background image */}
       <div className="fixed inset-0 z-0 overflow-hidden">
         <img
-          src="/assets/generated/startseite-hero.dim_1600x900.jpg"
+          src="/assets/uploads/lucid-origin_Image_depicts_a_modern_eco-friendly_residential_scene_featuring_a_contemporary_h-0-1.jpg"
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
           aria-hidden="true"
         />
       </div>
-      {/* Bright light overlay */}
-      <div className="fixed inset-0 z-0 bg-white/60" />
+      {/* Overlay — slightly more opaque for readability */}
+      <div className="fixed inset-0 z-0 bg-white/70" />
 
       {/* Language switcher */}
       <div className="fixed top-4 right-4 z-50">
@@ -127,6 +127,7 @@ function LoginScreen() {
           initial={{ opacity: 0, x: -24 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
+          className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-md"
         >
           {/* Logo */}
           <div className="flex items-center gap-3 mb-10">
@@ -150,7 +151,7 @@ function LoginScreen() {
           <h1 className="font-display text-4xl lg:text-5xl font-bold text-gray-900 leading-tight mb-4">
             {t("heroTagline")}
           </h1>
-          <p className="text-lg text-gray-700 leading-relaxed mb-12 max-w-lg">
+          <p className="text-lg text-gray-800 leading-relaxed mb-12 max-w-lg">
             {t("heroSubtitle")}
           </p>
 
@@ -163,7 +164,6 @@ function LoginScreen() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
                   duration: 0.5,
-
                   ease: "easeOut",
                 }}
                 className="flex items-start gap-4"
@@ -175,7 +175,7 @@ function LoginScreen() {
                   <p className="font-semibold text-gray-900 text-sm">
                     {f.title}
                   </p>
-                  <p className="text-gray-600 text-sm mt-0.5">{f.desc}</p>
+                  <p className="text-gray-700 text-sm mt-0.5">{f.desc}</p>
                 </div>
               </motion.div>
             ))}
@@ -191,7 +191,7 @@ function LoginScreen() {
           transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
           className="w-full max-w-sm"
         >
-          <Card className="bg-white/90 backdrop-blur-sm border-border shadow-2xl">
+          <Card className="bg-white/95 backdrop-blur-sm border-border shadow-2xl">
             <CardHeader className="text-center pb-4">
               <CardTitle className="font-display text-2xl text-foreground">
                 {t("loginTitle")}
@@ -202,9 +202,9 @@ function LoginScreen() {
             </CardHeader>
 
             <CardContent className="space-y-6">
-              <div className="flex items-center gap-2.5 p-3 rounded-md bg-secondary/60 border border-border">
+              <div className="flex items-center gap-2.5 p-3 rounded-md bg-blue-50 border border-blue-200">
                 <ShieldCheck className="w-4 h-4 text-primary flex-shrink-0" />
-                <p className="text-xs font-mono text-muted-foreground">
+                <p className="text-xs font-mono text-gray-700">
                   {t("loginSecurity")}
                 </p>
               </div>
@@ -230,7 +230,7 @@ function LoginScreen() {
             </CardContent>
           </Card>
 
-          <p className="text-center mt-6 text-xs font-mono text-gray-500">
+          <p className="text-center mt-6 text-xs font-mono text-gray-600">
             © {new Date().getFullYear()}. {t("footerBuiltWith")}{" "}
             <a
               href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
@@ -290,13 +290,13 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
       {/* Full-screen background image */}
       <div className="fixed inset-0 z-0 overflow-hidden">
         <img
-          src="/assets/generated/startseite-hero.dim_1600x900.jpg"
+          src="/assets/uploads/lucid-origin_Image_depicts_a_modern_eco-friendly_residential_scene_featuring_a_contemporary_h-0-1.jpg"
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
           aria-hidden="true"
         />
       </div>
-      <div className="fixed inset-0 z-0 bg-white/65" />
+      <div className="fixed inset-0 z-0 bg-white/70" />
 
       {/* Language switcher */}
       <div className="fixed top-4 right-4 z-50">
@@ -324,7 +324,7 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
           </div>
         </div>
 
-        <Card className="bg-white/90 backdrop-blur-sm border-border shadow-2xl">
+        <Card className="bg-white/95 backdrop-blur-sm border-border shadow-2xl">
           <CardHeader className="pb-4">
             <CardTitle className="font-display text-xl text-foreground">
               {t("registerTitle")}
@@ -378,7 +378,7 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
           </CardContent>
         </Card>
 
-        <p className="text-center mt-6 text-xs font-mono text-gray-500">
+        <p className="text-center mt-6 text-xs font-mono text-gray-600">
           © {new Date().getFullYear()}. {t("footerBuiltWith")}{" "}
           <a
             href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}

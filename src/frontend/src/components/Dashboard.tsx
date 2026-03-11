@@ -37,6 +37,7 @@ import {
   HelpCircle,
   Leaf,
   Loader2,
+  Printer,
   Trash2,
   TrendingUp,
   Zap,
@@ -2301,6 +2302,18 @@ export default function Dashboard() {
           </section>
         </>
       )}
+      <div className="pt-4 border-t border-border flex justify-end">
+        <Button
+          data-ocid="dashboard.export_pdf_button"
+          variant="outline"
+          size="sm"
+          onClick={() => window.print()}
+          className="font-mono text-xs gap-2"
+        >
+          <Printer className="w-3.5 h-3.5" />
+          {t("exportPdfButton")}
+        </Button>
+      </div>
     </div>
   );
 }

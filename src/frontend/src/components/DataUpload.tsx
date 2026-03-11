@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Car,
   CheckCircle2,
+  Download,
   FileText,
   Loader2,
   Star,
@@ -110,6 +111,41 @@ function Dropzone({
       ? "oklch(0.72 0.16 280)"
       : "oklch(0.72 0.18 140)";
   const Icon = isPV ? Sun : isPremium ? Star : Car;
+
+  const downloadSampleCSV = () => {
+    let csvContent = "";
+    let filename = "";
+    if (type === "pv") {
+      filename = "muster-basic-pv.csv";
+      csvContent = [
+        "Datum;Gesamt Erzeugung(Wh);Gesamt Verbrauch(Wh);Eigenverbrauch(Wh);Energie ins Netz eingespeist(Wh);Energie vom Netz bezogen(Wh)",
+        "01.01.2025;5200;4100;2800;2400;1300",
+        "02.01.2025;4800;3900;2600;2200;1300",
+      ].join("\r\n");
+    } else if (type === "wattpilot") {
+      filename = "muster-basic-wattpilot.csv";
+      csvContent = [
+        "Datum(dd.mm.yyyy);Energie von PV an Wattpilot(kWh);Energie vom Netz an Wattpilot(kWh);Energie von Batterie an Wattpilot(kWh)",
+        "01.01.2025;4.2;2.1;0.5",
+        "02.01.2025;3.8;1.9;0.3",
+      ].join("\r\n");
+    } else {
+      filename = "muster-premium.csv";
+      csvContent = [
+        "Datum und Uhrzeit;Direkt verbraucht;Energie aus Batterie bezogen;Energie in Batterie gespeichert;Energie ins Netz eingespeist;Energie vom Netz bezogen;PV Produktion;Verbrauch;Energie vom Netz an Wattpilot;Energie von Batterie an Wattpilot;Energie von PV an Wattpilot;State of Charge;Energie Wattpilot | Wattpilot Ebnetstrasse 16;Energie ins Netz eingespeist | PowerMeter;Energie vom Netz bezogen | PowerMeter;Produktion | METER_CAT_OTHER;Verbrauch | METER_CAT_OTHER;",
+        "[dd.MM.yyyy HH:mm];[Wh];[Wh];[Wh];[Wh];[Wh];[Wh];[Wh];[Wh];[Wh];[Wh];[%];[Wh];[Wh];[Wh];[Wh];[Wh];",
+        "01.01.2025 00:00;0.00;0.00;0.00;0.00;95.70;0.00;95.70;0.00;0.00;0.00;19.00;0.00;0.00;134.00;304.00;0.00;",
+        "01.01.2025 00:05;0.00;0.00;0.00;0.00;78.48;0.00;78.48;0.00;0.00;0.00;19.50;0.00;0.00;117.00;355.00;0.00;",
+      ].join("\r\n");
+    }
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -245,6 +281,25 @@ function Dropzone({
           </span>{" "}
           <code className="text-primary">{description}</code>
         </p>
+      </div>
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={downloadSampleCSV}
+          data-ocid={
+            type === "pv"
+              ? "pv.export_csv_button"
+              : type === "premium"
+                ? "premium.export_csv_button"
+                : "wattpilot.export_csv_button"
+          }
+          className="font-mono text-xs gap-1.5 text-muted-foreground hover:text-foreground h-7 px-2"
+        >
+          <Download className="w-3 h-3" />
+          {t("exportCsvButton")}
+        </Button>
       </div>
     </div>
   );
