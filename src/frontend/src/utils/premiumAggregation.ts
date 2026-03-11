@@ -83,10 +83,11 @@ export function aggregatePremiumToHourlyCSV(rawCSV: string): string {
     }
   }
 
-  // Helper: kWh back to Wh, rounded to 2 decimals
-  const toWh = (kwh: number) => (Math.round(kwh * 1000 * 100) / 100).toFixed(2);
+  // Helper: kWh back to Wh, 5 decimal places to preserve 0.01 Wh precision
+  // (original values have 2 decimal places in Wh = 5 decimal places in kWh)
+  const toWh = (kwh: number) => (kwh * 1000).toFixed(5);
   const toPercent = (sum: number, count: number) =>
-    count > 0 ? (Math.round((sum / count) * 100) / 100).toFixed(2) : "0.00";
+    count > 0 ? (sum / count).toFixed(2) : "0.00";
 
   // CSV header (same structure as input, without trailing semicolon)
   const header =

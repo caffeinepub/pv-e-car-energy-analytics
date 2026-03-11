@@ -85,10 +85,13 @@ const translations = {
 
     // KPI labels
     kpiProduktion: "PV Produktion",
+    kpiEvPvWattpilot: "Energie von PV an Wattpilot",
     kpiEigenverbrauch: "Eigenverbrauch",
     kpiAutarkie: "Autarkiegrad",
     kpiNetzeinspeisung: "Netzeinspeisung",
     kpiNetzbezug: "Netzbezug",
+    kpiDirektVerbraucht: "Direkt verbraucht",
+    kpiVerbrauch: "Verbrauch",
     kpiCo2Savings: "CO₂ Einsparung",
     kpiEinspeiseverguetung: "Einspeisevergütung",
     kpiErsparnis: "Ersparnis",
@@ -244,6 +247,14 @@ const translations = {
     chartTooltipNetzbezug: "Netzbezug",
     chartTooltipEigenverbrauch: "Eigenverbrauch",
     chartTooltipEinspeisung: "Einspeisung",
+    chartProdStacked: "Produktion",
+    chartProdStackedSubtitle: "Aufschlüsselung der Energieflüsse",
+    chartVerbStacked: "Verbrauch",
+    chartVerbStackedSubtitle: "Aufschlüsselung des Energieverbrauchs",
+    chartLegendBatterySpeichert: "Energie in Batterie gespeichert",
+    chartLegendWattpilot: "Energie Wattpilot",
+    chartLegendDirektOhnePV: "Direkt verbraucht",
+    chartLegendBatterieBezogen: "Energie aus Batterie bezogen",
 
     // Pie chart
     pieSliceSelf: "Eigenverbrauch",
@@ -383,10 +394,13 @@ const translations = {
 
     // KPI labels
     kpiProduktion: "PV Production",
+    kpiEvPvWattpilot: "Energy from PV to Wattpilot",
     kpiEigenverbrauch: "Self-consumption",
     kpiAutarkie: "Self-sufficiency",
     kpiNetzeinspeisung: "Grid Feed-in",
     kpiNetzbezug: "Grid Consumption",
+    kpiDirektVerbraucht: "Directly Consumed",
+    kpiVerbrauch: "Consumption",
     kpiCo2Savings: "CO₂ Savings",
     kpiEinspeiseverguetung: "Feed-in Revenue",
     kpiErsparnis: "Savings",
@@ -538,6 +552,14 @@ const translations = {
     chartTooltipNetzbezug: "Grid Draw",
     chartTooltipEigenverbrauch: "Self-consumption",
     chartTooltipEinspeisung: "Feed-in",
+    chartProdStacked: "Production",
+    chartProdStackedSubtitle: "Breakdown of energy flows",
+    chartVerbStacked: "Consumption",
+    chartVerbStackedSubtitle: "Breakdown of energy consumption",
+    chartLegendBatterySpeichert: "Energy stored in battery",
+    chartLegendWattpilot: "Wattpilot energy",
+    chartLegendDirektOhnePV: "Directly consumed",
+    chartLegendBatterieBezogen: "Energy from battery",
 
     // Pie chart
     pieSliceSelf: "Self-consumption",

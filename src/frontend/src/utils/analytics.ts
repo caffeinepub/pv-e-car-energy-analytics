@@ -50,6 +50,8 @@ export interface AnalyticsInput {
   selfConsumptionRate: number;
   autarkyRate: number;
   pvShareOfEVCharging: number;
+  totalDemand: number;
+  totalEVPV: number;
 }
 
 export function parsePVCSV(csvText: string): PVDataRow[] {
@@ -205,6 +207,8 @@ export function computeAnalytics(
     selfConsumptionRate: round2(selfConsumptionRate),
     autarkyRate: round2(autarkyRate),
     pvShareOfEVCharging: round2(pvShareOfEVCharging),
+    totalDemand: round2(totalDemand),
+    totalEVPV: round2(totalEVPV),
   };
 }
 
@@ -574,7 +578,8 @@ export function premiumToPVRows(rows: PremiumDataRow[]): PVDataRow[] {
     if (existing) {
       existing.gesamtErzeugung += row.pvProduktion;
       existing.gesamtVerbrauch += row.verbrauch;
-      existing.eigenverbrauch += row.direktVerbraucht;
+      existing.eigenverbrauch +=
+        row.direktVerbraucht + row.energieBatterieBezogen;
       existing.netzeinspeisung += row.netzeinspeisung;
       existing.netzbezug += row.netzbezug;
     } else {
@@ -582,7 +587,7 @@ export function premiumToPVRows(rows: PremiumDataRow[]): PVDataRow[] {
         datum: row.datum,
         gesamtErzeugung: row.pvProduktion,
         gesamtVerbrauch: row.verbrauch,
-        eigenverbrauch: row.direktVerbraucht,
+        eigenverbrauch: row.direktVerbraucht + row.energieBatterieBezogen,
         netzeinspeisung: row.netzeinspeisung,
         netzbezug: row.netzbezug,
       });

@@ -137,17 +137,22 @@ function checkDateInRange(
   to: Date | null,
 ): boolean {
   if (!from && !to) return true;
+  // Parse datum as LOCAL midnight to avoid UTC vs. local timezone offset
+  // that would shift the date and incorrectly exclude boundary days.
   let d: Date;
   if (/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
-    d = new Date(datum);
+    const [y, m, day] = datum.split("-").map(Number);
+    d = new Date(y!, m! - 1, day!); // local midnight
   } else if (/^\d{2}\.\d{2}\.\d{4}$/.test(datum)) {
     const parts = datum.split(".");
-    d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+    d = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])); // local midnight
   } else {
     return true;
   }
-  const f = from ? new Date(from.toDateString()) : null;
-  const t = to ? new Date(to.toDateString()) : null;
+  const f = from
+    ? new Date(from.getFullYear(), from.getMonth(), from.getDate())
+    : null;
+  const t = to ? new Date(to.getFullYear(), to.getMonth(), to.getDate()) : null;
   if (f && d < f) return false;
   if (t && d > t) return false;
   return true;
@@ -158,7 +163,7 @@ export default function Dashboard() {
   const { currency } = useCurrency();
   const { co2Faktor } = useCo2();
   const { mode } = useDataMode();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
 
   const formatKwh = useCallback(
     (val: number, name: string): [string, string] => {
@@ -446,6 +451,14 @@ export default function Dashboard() {
   ]);
 
   // ---------------------------------------------------------------------------
+  // Directly consumed energy for Kennzahlen KPI
+  const totalDirektVerbraucht = useMemo(() => {
+    if (mode === "premium") {
+      return filteredPremiumRows.reduce((s, r) => s + r.direktVerbraucht, 0);
+    }
+    return filteredPVRows.reduce((s, r) => s + r.eigenverbrauch, 0);
+  }, [mode, filteredPremiumRows, filteredPVRows]);
+
   // Chart data for the current period
   // ---------------------------------------------------------------------------
   const timeSeriesData = useMemo((): TimeSeriesPoint[] => {
@@ -486,6 +499,60 @@ export default function Dashboard() {
     if (periodMode !== "gesamt" || allPVRows.length === 0) return [];
     return aggregateByYear(allPVRows);
   }, [periodMode, allPVRows]);
+
+  // Premium stacked chart data
+  const premiumStackedData = useMemo(() => {
+    if (mode !== "premium" || filteredPremiumRows.length === 0) return [];
+    type StackRow = {
+      label: string;
+      netzeinspeisung: number;
+      energieBatterieGespeichert: number;
+      energieWattpilotGesamt: number;
+      direktVerbrauchtOhnePV: number;
+      netzbezug: number;
+      energieBatterieBezogen: number;
+      direktVerbraucht: number;
+    };
+    const map = new Map<string, StackRow>();
+    for (const r of filteredPremiumRows) {
+      let label: string;
+      if (
+        periodMode === "tag" ||
+        periodMode === "monat" ||
+        periodMode === "zeitraum"
+      ) {
+        label = r.datum;
+      } else if (periodMode === "jahr") {
+        const parts = r.datum.split(".");
+        label = `${parts[1]}.${parts[2]}`;
+      } else {
+        label = r.datum.split(".")[2] ?? r.datum;
+      }
+      const existing = map.get(label);
+      const dvoPV = Math.max(0, r.direktVerbraucht - r.energiePVWattpilot);
+      if (existing) {
+        existing.netzeinspeisung += r.netzeinspeisung;
+        existing.energieBatterieGespeichert += r.energieBatterieGespeichert;
+        existing.energieWattpilotGesamt += r.energieWattpilotGesamt;
+        existing.direktVerbrauchtOhnePV += dvoPV;
+        existing.netzbezug += r.netzbezug;
+        existing.energieBatterieBezogen += r.energieBatterieBezogen;
+        existing.direktVerbraucht += r.direktVerbraucht;
+      } else {
+        map.set(label, {
+          label,
+          netzeinspeisung: r.netzeinspeisung,
+          energieBatterieGespeichert: r.energieBatterieGespeichert,
+          energieWattpilotGesamt: r.energieWattpilotGesamt,
+          direktVerbrauchtOhnePV: dvoPV,
+          netzbezug: r.netzbezug,
+          energieBatterieBezogen: r.energieBatterieBezogen,
+          direktVerbraucht: r.direktVerbraucht,
+        });
+      }
+    }
+    return Array.from(map.values());
+  }, [mode, filteredPremiumRows, periodMode]);
 
   // ---------------------------------------------------------------------------
   // Demo data helpers
@@ -1370,6 +1437,35 @@ export default function Dashboard() {
                   className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 items-stretch"
                 >
                   <MetricCard
+                    label={t("kpiNetzbezug")}
+                    value={analytics.totalGridDraw.toFixed(1)}
+                    unit="kWh"
+                    icon={<ArrowDownLeft className="w-4 h-4" />}
+                    accentColor="grid-draw"
+                    dataOcid="dashboard.card"
+                  />
+                  <MetricCard
+                    label={t("kpiDirektVerbraucht")}
+                    value={totalDirektVerbraucht.toFixed(1)}
+                    unit="kWh"
+                    description={
+                      lang === "de"
+                        ? "Direkt von PV verbrauchte Energie"
+                        : "Energy directly consumed from PV"
+                    }
+                    icon={<Zap className="w-4 h-4" />}
+                    accentColor="self"
+                    dataOcid="dashboard.card"
+                  />
+                  <MetricCard
+                    label={t("kpiVerbrauch")}
+                    value={analytics.totalDemand.toFixed(1)}
+                    unit="kWh"
+                    icon={<Activity className="w-4 h-4" />}
+                    accentColor="grid-draw"
+                    dataOcid="dashboard.card"
+                  />
+                  <MetricCard
                     label={t("kpiAutarkie")}
                     value={analytics.autarkyRate.toFixed(1)}
                     unit="%"
@@ -1408,11 +1504,11 @@ export default function Dashboard() {
                     dataOcid="dashboard.card"
                   />
                   <MetricCard
-                    label={t("kpiNetzbezug")}
-                    value={analytics.totalGridDraw.toFixed(1)}
+                    label={t("kpiEvPvWattpilot")}
+                    value={analytics.totalEVPV.toFixed(1)}
                     unit="kWh"
-                    icon={<ArrowDownLeft className="w-4 h-4" />}
-                    accentColor="grid-draw"
+                    icon={<Car className="w-4 h-4" />}
+                    accentColor="ev"
                     dataOcid="dashboard.card"
                   />
                   <MetricCard
@@ -1650,24 +1746,6 @@ export default function Dashboard() {
                             description={t("kpiBatterieGespeichertDesc")}
                             icon={<ArrowUpRight className="w-4 h-4" />}
                             accentColor="grid-feed"
-                            dataOcid="dashboard.card"
-                          />
-                          <MetricCard
-                            label={t("kpiSoc")}
-                            value={
-                              filteredPremiumRows.length > 0
-                                ? (
-                                    filteredPremiumRows.reduce(
-                                      (s, r) => s + r.stateOfCharge,
-                                      0,
-                                    ) / filteredPremiumRows.length
-                                  ).toFixed(1)
-                                : "0"
-                            }
-                            unit="%"
-                            description={t("kpiSocDesc")}
-                            icon={<Activity className="w-4 h-4" />}
-                            accentColor="self"
                             dataOcid="dashboard.card"
                           />
                         </motion.div>
@@ -2296,6 +2374,167 @@ export default function Dashboard() {
                       })}
                     </div>
                   </div>
+                </motion.div>
+              )}
+              {/* Produktion Stacked Chart - Premium only */}
+              {mode === "premium" && premiumStackedData.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 }}
+                  data-ocid="dashboard.panel"
+                  className="bg-card border border-border rounded-lg p-4"
+                >
+                  <h3 className="text-sm font-mono font-medium text-foreground mb-1">
+                    {t("chartProdStacked")}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    {t("chartProdStackedSubtitle")}
+                  </p>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart
+                      data={premiumStackedData}
+                      margin={{ top: 4, right: 4, left: 0, bottom: 20 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="oklch(0.28 0.015 260)"
+                      />
+                      <XAxis
+                        dataKey="label"
+                        tick={AXIS_TICK}
+                        tickLine={false}
+                        axisLine={false}
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis
+                        tick={AXIS_TICK}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(v: number) =>
+                          v >= 1000
+                            ? `${(v / 1000).toFixed(1)}k`
+                            : `${v.toFixed(0)}`
+                        }
+                      />
+                      <Tooltip
+                        contentStyle={TOOLTIP_STYLE}
+                        itemStyle={{ color: "oklch(0.92 0.012 80)" }}
+                        labelStyle={{ color: "oklch(0.92 0.012 80)" }}
+                        formatter={(val: number) =>
+                          [`${val.toFixed(2)} kWh`, ""] as [string, string]
+                        }
+                      />
+                      <Legend
+                        wrapperStyle={{
+                          fontSize: "10px",
+                          fontFamily: "monospace",
+                        }}
+                      />
+                      <Bar
+                        dataKey="netzeinspeisung"
+                        name={t("chartLegendFeedIn")}
+                        stackId="a"
+                        fill={CHART_COLORS.gridFeed}
+                      />
+                      <Bar
+                        dataKey="energieBatterieGespeichert"
+                        name={t("chartLegendBatterySpeichert")}
+                        stackId="a"
+                        fill="oklch(0.68 0.14 280)"
+                      />
+                      <Bar
+                        dataKey="energieWattpilotGesamt"
+                        name={t("chartLegendWattpilot")}
+                        stackId="a"
+                        fill={CHART_COLORS.ev}
+                      />
+                      <Bar
+                        dataKey="direktVerbrauchtOhnePV"
+                        name={t("chartLegendDirektOhnePV")}
+                        stackId="a"
+                        fill={CHART_COLORS.pv}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </motion.div>
+              )}
+
+              {/* Verbrauch Stacked Chart - Premium only */}
+              {mode === "premium" && premiumStackedData.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  data-ocid="dashboard.panel"
+                  className="bg-card border border-border rounded-lg p-4"
+                >
+                  <h3 className="text-sm font-mono font-medium text-foreground mb-1">
+                    {t("chartVerbStacked")}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    {t("chartVerbStackedSubtitle")}
+                  </p>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart
+                      data={premiumStackedData}
+                      margin={{ top: 4, right: 4, left: 0, bottom: 20 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="oklch(0.28 0.015 260)"
+                      />
+                      <XAxis
+                        dataKey="label"
+                        tick={AXIS_TICK}
+                        tickLine={false}
+                        axisLine={false}
+                        interval="preserveStartEnd"
+                      />
+                      <YAxis
+                        tick={AXIS_TICK}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(v: number) =>
+                          v >= 1000
+                            ? `${(v / 1000).toFixed(1)}k`
+                            : `${v.toFixed(0)}`
+                        }
+                      />
+                      <Tooltip
+                        contentStyle={TOOLTIP_STYLE}
+                        itemStyle={{ color: "oklch(0.92 0.012 80)" }}
+                        labelStyle={{ color: "oklch(0.92 0.012 80)" }}
+                        formatter={(val: number) =>
+                          [`${val.toFixed(2)} kWh`, ""] as [string, string]
+                        }
+                      />
+                      <Legend
+                        wrapperStyle={{
+                          fontSize: "10px",
+                          fontFamily: "monospace",
+                        }}
+                      />
+                      <Bar
+                        dataKey="netzbezug"
+                        name={t("chartLegendGridDraw")}
+                        stackId="a"
+                        fill={CHART_COLORS.gridDraw}
+                      />
+                      <Bar
+                        dataKey="energieBatterieBezogen"
+                        name={t("chartLegendBatterieBezogen")}
+                        stackId="a"
+                        fill="oklch(0.60 0.16 270)"
+                      />
+                      <Bar
+                        dataKey="direktVerbraucht"
+                        name={t("chartLegendDirektOhnePV")}
+                        stackId="a"
+                        fill={CHART_COLORS.pv}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </motion.div>
               )}
             </div>

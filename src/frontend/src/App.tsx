@@ -25,7 +25,6 @@ import {
   Upload,
   Zap,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { UserProfile } from "./backend.d.ts";
@@ -113,7 +112,7 @@ function LoginScreen() {
           aria-hidden="true"
         />
       </div>
-      {/* Overlay — slightly more opaque for readability */}
+      {/* Overlay */}
       <div className="fixed inset-0 z-0 bg-white/70" />
 
       {/* Language switcher */}
@@ -123,12 +122,7 @@ function LoginScreen() {
 
       {/* Left hero column */}
       <div className="relative z-10 flex-1 flex flex-col justify-center px-8 py-16 lg:px-16 lg:py-24 lg:w-3/5">
-        <motion.div
-          initial={{ opacity: 0, x: -24 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-md"
-        >
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 shadow-md">
           {/* Logo */}
           <div className="flex items-center gap-3 mb-10">
             <div className="relative">
@@ -158,16 +152,7 @@ function LoginScreen() {
           {/* Features */}
           <div className="space-y-5">
             {features.map((f) => (
-              <motion.div
-                key={f.title}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.5,
-                  ease: "easeOut",
-                }}
-                className="flex items-start gap-4"
-              >
+              <div key={f.title} className="flex items-start gap-4">
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <f.icon className="w-5 h-5 text-primary" />
                 </div>
@@ -177,20 +162,15 @@ function LoginScreen() {
                   </p>
                   <p className="text-gray-700 text-sm mt-0.5">{f.desc}</p>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* Right login column */}
       <div className="relative z-10 flex flex-col justify-center items-center px-8 py-12 lg:w-2/5 lg:py-24">
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
-          className="w-full max-w-sm"
-        >
+        <div className="w-full max-w-sm">
           <Card className="bg-white/95 backdrop-blur-sm border-border shadow-2xl">
             <CardHeader className="text-center pb-4">
               <CardTitle className="font-display text-2xl text-foreground">
@@ -241,7 +221,7 @@ function LoginScreen() {
               caffeine.ai
             </a>
           </p>
-        </motion.div>
+        </div>
       </div>
     </div>
   );
@@ -303,12 +283,7 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
         <LanguageSwitcher />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="relative z-10 w-full max-w-md"
-      >
+      <div className="relative z-10 w-full max-w-md">
         {/* Logo mark */}
         <div className="flex justify-center mb-8">
           <div className="relative">
@@ -389,7 +364,7 @@ function RegistrationScreen({ onRegistered }: RegistrationScreenProps) {
             caffeine.ai
           </a>
         </p>
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -654,13 +629,7 @@ function Co2SettingsCard() {
 function SettingsPanel({ userProfile }: SettingsPanelProps) {
   const { t } = useLanguage();
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      data-ocid="settings.panel"
-      className="max-w-lg space-y-6"
-    >
+    <div data-ocid="settings.panel" className="max-w-lg space-y-6">
       {/* Profile info */}
       <Card className="bg-card border-border">
         <CardHeader className="pb-3">
@@ -708,7 +677,7 @@ function SettingsPanel({ userProfile }: SettingsPanelProps) {
 
       {/* CO2 Factor */}
       <Co2SettingsCard />
-    </motion.div>
+    </div>
   );
 }
 
@@ -748,53 +717,19 @@ function AppInner() {
 
   return (
     <>
-      <AnimatePresence mode="wait">
-        {isLoading ? (
-          <motion.div
-            key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <LoadingScreen />
-          </motion.div>
-        ) : !isAuthenticated ? (
-          <motion.div
-            key="login"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <LoginScreen />
-          </motion.div>
-        ) : showRegistration ? (
-          <motion.div
-            key="register"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <RegistrationScreen
-              onRegistered={() => {
-                void profileQuery.refetch();
-              }}
-            />
-          </motion.div>
-        ) : showApp && userProfile ? (
-          <motion.div
-            key="app"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <MainApp userProfile={userProfile} />
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+      {isLoading ? (
+        <LoadingScreen />
+      ) : !isAuthenticated ? (
+        <LoginScreen />
+      ) : showRegistration ? (
+        <RegistrationScreen
+          onRegistered={() => {
+            void profileQuery.refetch();
+          }}
+        />
+      ) : showApp && userProfile ? (
+        <MainApp userProfile={userProfile} />
+      ) : null}
 
       <Toaster
         theme="dark"
