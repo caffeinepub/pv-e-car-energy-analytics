@@ -130,6 +130,241 @@ const AXIS_TICK = {
   fontFamily: "monospace",
   fill: "oklch(0.58 0.02 80)",
 };
+// Custom tooltip renders each series item with its own color
+function CustomChartTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{
+    fill?: string;
+    color?: string;
+    stroke?: string;
+    name?: string;
+    value?: number;
+  }>;
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div
+      style={{
+        ...TOOLTIP_STYLE,
+        padding: "8px 12px",
+        minWidth: 160,
+      }}
+    >
+      {label && (
+        <p
+          style={{
+            color: "oklch(0.75 0.02 80)",
+            marginBottom: 6,
+            fontSize: 10,
+            fontFamily: "monospace",
+          }}
+        >
+          {label}
+        </p>
+      )}
+      {payload.map((item, i) => {
+        const clr =
+          item.fill || item.color || item.stroke || "oklch(0.92 0.012 80)";
+        return (
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: tooltip items have no stable key
+            key={i}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              marginTop: i > 0 ? 4 : 0,
+            }}
+          >
+            <div
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 2,
+                backgroundColor: clr,
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ color: clr, fontFamily: "monospace", fontSize: 11 }}>
+              {item.name}: {Number(item.value ?? 0).toFixed(2)} kWh
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ProduktionTooltip({
+  active,
+  payload,
+  label,
+  totalLabel,
+}: {
+  active?: boolean;
+  payload?: Array<{
+    fill?: string;
+    color?: string;
+    stroke?: string;
+    name?: string;
+    value?: number;
+  }>;
+  label?: string;
+  totalLabel: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const total = payload.reduce((s, item) => s + (item.value ?? 0), 0);
+  return (
+    <div style={{ ...TOOLTIP_STYLE, padding: "8px 12px", minWidth: 180 }}>
+      {label && (
+        <p
+          style={{
+            color: "oklch(0.75 0.02 80)",
+            marginBottom: 6,
+            fontSize: 10,
+            fontFamily: "monospace",
+          }}
+        >
+          {label}
+        </p>
+      )}
+      {payload.map((item, i) => {
+        const clr =
+          item.fill || item.color || item.stroke || "oklch(0.92 0.012 80)";
+        return (
+          <div
+            key={item.name ?? i}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              marginTop: i > 0 ? 4 : 0,
+            }}
+          >
+            <div
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 2,
+                backgroundColor: clr,
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ color: clr, fontFamily: "monospace", fontSize: 11 }}>
+              {item.name}: {Number(item.value ?? 0).toFixed(2)} kWh
+            </span>
+          </div>
+        );
+      })}
+      <div
+        style={{
+          borderTop: "1px solid oklch(0.35 0.015 260)",
+          marginTop: 6,
+          paddingTop: 6,
+        }}
+      >
+        <span
+          style={{
+            color: "oklch(0.85 0.012 80)",
+            fontFamily: "monospace",
+            fontSize: 11,
+            fontWeight: 600,
+          }}
+        >
+          {totalLabel}: {total.toFixed(2)} kWh
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function VerbrauchTooltip({
+  active,
+  payload,
+  label,
+  totalLabel,
+}: {
+  active?: boolean;
+  payload?: Array<{
+    fill?: string;
+    color?: string;
+    stroke?: string;
+    name?: string;
+    value?: number;
+  }>;
+  label?: string;
+  totalLabel: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const total = payload.reduce((s, item) => s + (item.value ?? 0), 0);
+  return (
+    <div style={{ ...TOOLTIP_STYLE, padding: "8px 12px", minWidth: 180 }}>
+      {label && (
+        <p
+          style={{
+            color: "oklch(0.75 0.02 80)",
+            marginBottom: 6,
+            fontSize: 10,
+            fontFamily: "monospace",
+          }}
+        >
+          {label}
+        </p>
+      )}
+      {payload.map((item, i) => {
+        const clr =
+          item.fill || item.color || item.stroke || "oklch(0.92 0.012 80)";
+        return (
+          <div
+            key={item.name ?? i}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              marginTop: i > 0 ? 4 : 0,
+            }}
+          >
+            <div
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 2,
+                backgroundColor: clr,
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ color: clr, fontFamily: "monospace", fontSize: 11 }}>
+              {item.name}: {Number(item.value ?? 0).toFixed(2)} kWh
+            </span>
+          </div>
+        );
+      })}
+      <div
+        style={{
+          borderTop: "1px solid oklch(0.35 0.015 260)",
+          marginTop: 6,
+          paddingTop: 6,
+        }}
+      >
+        <span
+          style={{
+            color: "oklch(0.85 0.012 80)",
+            fontFamily: "monospace",
+            fontSize: 11,
+            fontWeight: 600,
+          }}
+        >
+          {totalLabel}: {total.toFixed(2)} kWh
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function checkDateInRange(
   datum: string,
@@ -239,7 +474,13 @@ export default function Dashboard() {
       setAllTarifPerioden(tarifPerioden);
 
       if (mode === "premium") {
-        const premiumSessions = await (actor as any).getPremiumSessions();
+        const premiumMeta = await (actor as any).getPremiumSessionsMeta();
+        const premiumSessions = await Promise.all(
+          premiumMeta.map(async (meta: any) => {
+            const data = await (actor as any).getSession(meta.id, "premium");
+            return { ...meta, data };
+          }),
+        );
         if (premiumSessions.length > 0) {
           const rows = premiumSessions.flatMap((s) => parsePremiumCSV(s.data));
           setAllPremiumRows(rows);
@@ -551,7 +792,20 @@ export default function Dashboard() {
         });
       }
     }
-    return Array.from(map.values());
+    const arr = Array.from(map.values()).filter(
+      (r) =>
+        r.netzeinspeisung > 0 ||
+        r.energieBatterieGespeichert > 0 ||
+        r.energieWattpilotGesamt > 0 ||
+        r.direktVerbrauchtOhnePV > 0 ||
+        r.netzbezug > 0 ||
+        r.energieBatterieBezogen > 0 ||
+        r.direktVerbraucht > 0,
+    );
+    if (periodMode === "gesamt") {
+      arr.sort((a, b) => a.label.localeCompare(b.label));
+    }
+    return arr;
   }, [mode, filteredPremiumRows, periodMode]);
 
   // ---------------------------------------------------------------------------
@@ -2334,14 +2588,7 @@ export default function Dashboard() {
                             />
                           ))}
                         </Pie>
-                        <Tooltip
-                          contentStyle={TOOLTIP_STYLE}
-                          itemStyle={{ color: "oklch(0.92 0.012 80)" }}
-                          labelStyle={{ color: "oklch(0.92 0.012 80)" }}
-                          formatter={(val: number) =>
-                            [`${val.toFixed(2)} kWh`, ""] as [string, string]
-                          }
-                        />
+                        <Tooltip content={<CustomChartTooltip />} />
                       </PieChart>
                     </ResponsiveContainer>
 
@@ -2418,11 +2665,10 @@ export default function Dashboard() {
                         }
                       />
                       <Tooltip
-                        contentStyle={TOOLTIP_STYLE}
-                        itemStyle={{ color: "oklch(0.92 0.012 80)" }}
-                        labelStyle={{ color: "oklch(0.92 0.012 80)" }}
-                        formatter={(val: number) =>
-                          [`${val.toFixed(2)} kWh`, ""] as [string, string]
+                        content={
+                          <ProduktionTooltip
+                            totalLabel={t("chartProdStacked")}
+                          />
                         }
                       />
                       <Legend
@@ -2502,11 +2748,10 @@ export default function Dashboard() {
                         }
                       />
                       <Tooltip
-                        contentStyle={TOOLTIP_STYLE}
-                        itemStyle={{ color: "oklch(0.92 0.012 80)" }}
-                        labelStyle={{ color: "oklch(0.92 0.012 80)" }}
-                        formatter={(val: number) =>
-                          [`${val.toFixed(2)} kWh`, ""] as [string, string]
+                        content={
+                          <VerbrauchTooltip
+                            totalLabel={t("chartVerbStacked")}
+                          />
                         }
                       />
                       <Legend

@@ -28,6 +28,12 @@ export interface PremiumSession {
     name: string;
     timestamp: Time;
 }
+export interface PremiumSessionMeta {
+    id: string;
+    owner: Principal;
+    name: string;
+    timestamp: Time;
+}
 export type Time = bigint;
 export interface TarifStufe {
     id: string;
@@ -86,6 +92,7 @@ export interface backendInterface {
     getPVSampleData(): Promise<string>;
     getPVSessions(): Promise<Array<PVSession>>;
     getPremiumSessions(): Promise<Array<PremiumSession>>;
+    getPremiumSessionsMeta(): Promise<Array<PremiumSessionMeta>>;
     getSession(id: string, sessionType: string): Promise<string>;
     getTarifPerioden(): Promise<Array<TarifPeriode>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;

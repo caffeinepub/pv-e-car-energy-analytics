@@ -63,6 +63,12 @@ export const PremiumSession = IDL.Record({
   'name' : IDL.Text,
   'timestamp' : Time,
 });
+export const PremiumSessionMeta = IDL.Record({
+  'id' : IDL.Text,
+  'owner' : IDL.Principal,
+  'name' : IDL.Text,
+  'timestamp' : Time,
+});
 export const WattpilotSession = IDL.Record({
   'id' : IDL.Text,
   'owner' : IDL.Principal,
@@ -93,6 +99,7 @@ export const idlService = IDL.Service({
   'getPVSampleData' : IDL.Func([], [IDL.Text], ['query']),
   'getPVSessions' : IDL.Func([], [IDL.Vec(PVSession)], ['query']),
   'getPremiumSessions' : IDL.Func([], [IDL.Vec(PremiumSession)], ['query']),
+  'getPremiumSessionsMeta' : IDL.Func([], [IDL.Vec(PremiumSessionMeta)], ['query']),
   'getSession' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], ['query']),
   'getTarifPerioden' : IDL.Func([], [IDL.Vec(TarifPeriode)], ['query']),
   'getUserProfile' : IDL.Func(
@@ -170,6 +177,12 @@ export const idlFactory = ({ IDL }) => {
     'name' : IDL.Text,
     'timestamp' : Time,
   });
+  const PremiumSessionMeta = IDL.Record({
+    'id' : IDL.Text,
+    'owner' : IDL.Principal,
+    'name' : IDL.Text,
+    'timestamp' : Time,
+  });
   const WattpilotSession = IDL.Record({
     'id' : IDL.Text,
     'owner' : IDL.Principal,
@@ -200,6 +213,7 @@ export const idlFactory = ({ IDL }) => {
     'getPVSampleData' : IDL.Func([], [IDL.Text], ['query']),
     'getPVSessions' : IDL.Func([], [IDL.Vec(PVSession)], ['query']),
     'getPremiumSessions' : IDL.Func([], [IDL.Vec(PremiumSession)], ['query']),
+    'getPremiumSessionsMeta' : IDL.Func([], [IDL.Vec(PremiumSessionMeta)], ['query']),
     'getSession' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], ['query']),
     'getTarifPerioden' : IDL.Func([], [IDL.Vec(TarifPeriode)], ['query']),
     'getUserProfile' : IDL.Func(

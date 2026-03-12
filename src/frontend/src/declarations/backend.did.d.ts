@@ -36,6 +36,12 @@ export interface PremiumSession {
   'name' : string,
   'timestamp' : Time,
 }
+export interface PremiumSessionMeta {
+  'id' : string,
+  'owner' : Principal,
+  'name' : string,
+  'timestamp' : Time,
+}
 export interface TarifPeriode {
   'id' : string,
   'bis' : string,
@@ -88,6 +94,7 @@ export interface _SERVICE {
   'getPVSampleData' : ActorMethod<[], string>,
   'getPVSessions' : ActorMethod<[], Array<PVSession>>,
   'getPremiumSessions' : ActorMethod<[], Array<PremiumSession>>,
+  'getPremiumSessionsMeta' : ActorMethod<[], Array<PremiumSessionMeta>>,
   'getSession' : ActorMethod<[string, string], string>,
   'getTarifPerioden' : ActorMethod<[], Array<TarifPeriode>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,

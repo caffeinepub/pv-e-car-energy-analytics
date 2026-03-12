@@ -80,6 +80,13 @@ actor {
       owner : Principal;
     };
 
+    public type PremiumSessionMeta = {
+      id : Text;
+      name : Text;
+      timestamp : Time.Time;
+      owner : Principal;
+    };
+
     public module ID {
       public func toText(id : ID) : Text {
         id;
@@ -308,6 +315,7 @@ actor {
     };
   };
 
+  // Returns full premium sessions including CSV data (may be large — use getPremiumSessionsMeta for listing)
   public query ({ caller }) func getPremiumSessions() : async [PremiumSession.PremiumSession] {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only authenticated users can view sessions");
@@ -315,6 +323,22 @@ actor {
     premiumSessions.values().filter(
       func(session) {
         session.owner == caller;
+      }
+    ).toArray();
+  };
+
+  // Returns premium session metadata WITHOUT CSV data — safe for listing with many sessions
+  public query ({ caller }) func getPremiumSessionsMeta() : async [PremiumSession.PremiumSessionMeta] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only authenticated users can view sessions");
+    };
+    premiumSessions.values().filter(
+      func(session) {
+        session.owner == caller;
+      }
+    ).map(
+      func(session) : PremiumSession.PremiumSessionMeta {
+        { id = session.id; name = session.name; timestamp = session.timestamp; owner = session.owner };
       }
     ).toArray();
   };

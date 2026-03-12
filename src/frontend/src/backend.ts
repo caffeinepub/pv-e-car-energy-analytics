@@ -139,6 +139,12 @@ export interface PremiumSession {
     name: string;
     timestamp: Time;
 }
+export interface PremiumSessionMeta {
+    id: string;
+    owner: Principal;
+    name: string;
+    timestamp: Time;
+}
 export interface UserProfile {
     principal: Principal;
     co2Faktor: number;
@@ -169,6 +175,7 @@ export interface backendInterface {
     getPVSampleData(): Promise<string>;
     getPVSessions(): Promise<Array<PVSession>>;
     getPremiumSessions(): Promise<Array<PremiumSession>>;
+    getPremiumSessionsMeta(): Promise<Array<PremiumSessionMeta>>;
     getSession(id: string, sessionType: string): Promise<string>;
     getTarifPerioden(): Promise<Array<TarifPeriode>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
@@ -421,6 +428,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getPremiumSessions();
+            return result;
+        }
+    }
+    async getPremiumSessionsMeta(): Promise<Array<PremiumSessionMeta>> {
+        if (this.processError) {
+            try {
+                const result = await (this.actor as any).getPremiumSessionsMeta();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await (this.actor as any).getPremiumSessionsMeta();
             return result;
         }
     }

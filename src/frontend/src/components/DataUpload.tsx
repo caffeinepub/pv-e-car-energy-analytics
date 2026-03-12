@@ -37,11 +37,10 @@ import type {
   WattpilotSession,
 } from "../backend.d.ts";
 
-// PremiumSession is in backend.d.ts but resolves via backend.ts at runtime — define inline
-interface PremiumSession {
+// PremiumSessionMeta: no data field to avoid IC payload size limit
+interface PremiumSessionMeta {
   id: string;
   name: string;
-  data: string;
   timestamp: bigint;
 }
 import type { backendInterface } from "../backend.d.ts";
@@ -306,7 +305,7 @@ function Dropzone({
 }
 
 interface SessionListProps {
-  sessions: (PVSession | WattpilotSession | PremiumSession)[];
+  sessions: (PVSession | WattpilotSession | PremiumSessionMeta)[];
   onDelete: (id: string) => Promise<void>;
   type: "pv" | "wattpilot" | "premium";
   loading: boolean;
@@ -395,7 +394,9 @@ function SessionList({ sessions, onDelete, type, loading }: SessionListProps) {
             variant="outline"
             className="text-xs font-mono border-border text-muted-foreground flex-shrink-0"
           >
-            {Math.round(session.data.length / 1000)}kB
+            {"data" in session
+              ? `${Math.round((session as any).data.length / 1000)}kB`
+              : ""}
           </Badge>
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -457,7 +458,9 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
   const [wattpilotSessions, setWattpilotSessions] = useState<
     WattpilotSession[]
   >([]);
-  const [premiumSessions, setPremiumSessions] = useState<PremiumSession[]>([]);
+  const [premiumSessions, setPremiumSessions] = useState<PremiumSessionMeta[]>(
+    [],
+  );
   const [loadingSessions, setLoadingSessions] = useState(true);
 
   const [pvUploadStatus, setPVUploadStatus] = useState<UploadStatus>("idle");
@@ -478,7 +481,7 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
         const [pvs, wps, premiums] = await Promise.all([
           a.getPVSessions(),
           a.getWattpilotSessions(),
-          a.getPremiumSessions(),
+          a.getPremiumSessionsMeta(),
         ]);
         setPVSessions(pvs);
         setWattpilotSessions(wps);
@@ -640,7 +643,7 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
       setPremiumUploadProgress("Hochladen…");
       await actor.addPremiumSession(id, file.name, aggregatedCSV);
 
-      const updated = await actor.getPremiumSessions();
+      const updated = await actor.getPremiumSessionsMeta();
       setPremiumSessions(updated);
       setPremiumUploadProgress(undefined);
       setPremiumUploadStatus("success");
