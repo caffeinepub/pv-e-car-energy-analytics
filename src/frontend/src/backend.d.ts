@@ -7,30 +7,17 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
+export interface UserProfile {
+    principal: Principal;
+    co2Faktor: number;
+    registeredAt: Time;
+    waehrung: string;
+    pvName: string;
+}
 export interface PVSession {
     id: string;
     owner: Principal;
     data: string;
-    name: string;
-    timestamp: Time;
-}
-export interface WattpilotSession {
-    id: string;
-    owner: Principal;
-    data: string;
-    name: string;
-    timestamp: Time;
-}
-export interface PremiumSession {
-    id: string;
-    owner: Principal;
-    data: string;
-    name: string;
-    timestamp: Time;
-}
-export interface PremiumSessionMeta {
-    id: string;
-    owner: Principal;
     name: string;
     timestamp: Time;
 }
@@ -39,6 +26,13 @@ export interface TarifStufe {
     id: string;
     preis: number;
     farbe: string;
+}
+export interface PremiumSession {
+    id: string;
+    owner: Principal;
+    data: string;
+    name: string;
+    timestamp: Time;
 }
 export interface AnalyticsResult {
     id: string;
@@ -63,12 +57,18 @@ export interface TarifPeriode {
     bezugStufen: Array<TarifStufe>;
     zuordnungEinspeisung: Array<Array<string>>;
 }
-export interface UserProfile {
-    principal: Principal;
-    co2Faktor: number;
-    registeredAt: Time;
-    waehrung: string;
-    pvName: string;
+export interface WattpilotSession {
+    id: string;
+    owner: Principal;
+    data: string;
+    name: string;
+    timestamp: Time;
+}
+export interface PremiumSessionMeta {
+    id: string;
+    owner: Principal;
+    name: string;
+    timestamp: Time;
 }
 export enum UserRole {
     admin = "admin",
@@ -77,9 +77,9 @@ export enum UserRole {
 }
 export interface backendInterface {
     addPVSession(id: string, name: string, data: string): Promise<void>;
+    addPremiumSession(id: string, name: string, data: string): Promise<void>;
     addTarifPeriode(periode: TarifPeriode): Promise<void>;
     addWattpilotSession(id: string, name: string, data: string): Promise<void>;
-    addPremiumSession(id: string, name: string, data: string): Promise<void>;
     appendPremiumSessionData(id: string, chunk: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     deleteSession(id: string, sessionType: string): Promise<void>;

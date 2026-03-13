@@ -774,7 +774,7 @@ export default function Dashboard() {
       if (existing) {
         existing.netzeinspeisung += r.netzeinspeisung;
         existing.energieBatterieGespeichert += r.energieBatterieGespeichert;
-        existing.energieWattpilotGesamt += r.energieWattpilotGesamt;
+        existing.energieWattpilotGesamt += r.energiePVWattpilot;
         existing.direktVerbrauchtOhnePV += dvoPV;
         existing.netzbezug += r.netzbezug;
         existing.energieBatterieBezogen += r.energieBatterieBezogen;
@@ -784,7 +784,7 @@ export default function Dashboard() {
           label,
           netzeinspeisung: r.netzeinspeisung,
           energieBatterieGespeichert: r.energieBatterieGespeichert,
-          energieWattpilotGesamt: r.energieWattpilotGesamt,
+          energieWattpilotGesamt: r.energiePVWattpilot,
           direktVerbrauchtOhnePV: dvoPV,
           netzbezug: r.netzbezug,
           energieBatterieBezogen: r.energieBatterieBezogen,
@@ -807,6 +807,30 @@ export default function Dashboard() {
     }
     return arr;
   }, [mode, filteredPremiumRows, periodMode]);
+
+  const produktionTotal = useMemo(
+    () =>
+      premiumStackedData.reduce(
+        (sum, r) =>
+          sum +
+          r.netzeinspeisung +
+          r.energieBatterieGespeichert +
+          r.energieWattpilotGesamt +
+          r.direktVerbrauchtOhnePV,
+        0,
+      ),
+    [premiumStackedData],
+  );
+
+  const verbrauchTotal = useMemo(
+    () =>
+      premiumStackedData.reduce(
+        (sum, r) =>
+          sum + r.netzbezug + r.energieBatterieBezogen + r.direktVerbraucht,
+        0,
+      ),
+    [premiumStackedData],
+  );
 
   // ---------------------------------------------------------------------------
   // Demo data helpers
@@ -2632,9 +2656,14 @@ export default function Dashboard() {
                   data-ocid="dashboard.panel"
                   className="bg-card border border-border rounded-lg p-4"
                 >
-                  <h3 className="text-sm font-mono font-medium text-foreground mb-1">
-                    {t("chartProdStacked")}
-                  </h3>
+                  <div className="flex items-baseline justify-between mb-1">
+                    <h3 className="text-sm font-mono font-medium text-foreground">
+                      {t("chartProdStacked")}
+                    </h3>
+                    <span className="text-sm font-mono font-medium text-foreground">
+                      {produktionTotal.toFixed(2)} kWh
+                    </span>
+                  </div>
                   <p className="text-xs text-muted-foreground mb-4">
                     {t("chartProdStackedSubtitle")}
                   </p>
@@ -2715,9 +2744,14 @@ export default function Dashboard() {
                   data-ocid="dashboard.panel"
                   className="bg-card border border-border rounded-lg p-4"
                 >
-                  <h3 className="text-sm font-mono font-medium text-foreground mb-1">
-                    {t("chartVerbStacked")}
-                  </h3>
+                  <div className="flex items-baseline justify-between mb-1">
+                    <h3 className="text-sm font-mono font-medium text-foreground">
+                      {t("chartVerbStacked")}
+                    </h3>
+                    <span className="text-sm font-mono font-medium text-foreground">
+                      {verbrauchTotal.toFixed(2)} kWh
+                    </span>
+                  </div>
                   <p className="text-xs text-muted-foreground mb-4">
                     {t("chartVerbStackedSubtitle")}
                   </p>

@@ -478,17 +478,35 @@ export default function DataUpload({ onDataUploaded }: DataUploadProps) {
     async (a: backendInterface) => {
       try {
         setLoadingSessions(true);
-        const [pvs, wps, premiums] = await Promise.all([
+        const [pvResult, wpResult, premiumResult] = await Promise.allSettled([
           a.getPVSessions(),
           a.getWattpilotSessions(),
           a.getPremiumSessionsMeta(),
         ]);
-        setPVSessions(pvs);
-        setWattpilotSessions(wps);
-        setPremiumSessions(premiums);
-      } catch (err) {
-        console.error(err);
-        toast.error(t("uploadErrorLoading"));
+
+        if (pvResult.status === "fulfilled") {
+          setPVSessions(pvResult.value);
+        } else {
+          console.error("Failed to load PV sessions:", pvResult.reason);
+          toast.error(t("uploadErrorLoading"));
+        }
+
+        if (wpResult.status === "fulfilled") {
+          setWattpilotSessions(wpResult.value);
+        } else {
+          console.error("Failed to load Wattpilot sessions:", wpResult.reason);
+        }
+
+        if (premiumResult.status === "fulfilled") {
+          setPremiumSessions(premiumResult.value);
+        } else {
+          // Silently handle missing getPremiumSessionsMeta method
+          console.warn(
+            "getPremiumSessionsMeta not available:",
+            premiumResult.reason,
+          );
+          setPremiumSessions([]);
+        }
       } finally {
         setLoadingSessions(false);
       }

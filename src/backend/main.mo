@@ -7,10 +7,8 @@ import Text "mo:core/Text";
 import Principal "mo:core/Principal";
 import Order "mo:core/Order";
 
-
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
-
 
 actor {
   // Initialize the access control system
@@ -315,7 +313,7 @@ actor {
     };
   };
 
-  // Returns full premium sessions including CSV data (may be large — use getPremiumSessionsMeta for listing)
+  // Returns full premium sessions including CSV data (may be large - use getPremiumSessionsMeta for listing)
   public query ({ caller }) func getPremiumSessions() : async [PremiumSession.PremiumSession] {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only authenticated users can view sessions");
@@ -327,7 +325,7 @@ actor {
     ).toArray();
   };
 
-  // Returns premium session metadata WITHOUT CSV data — safe for listing with many sessions
+  // Returns premium session metadata WITHOUT CSV data - safe for listing with many sessions
   public query ({ caller }) func getPremiumSessionsMeta() : async [PremiumSession.PremiumSessionMeta] {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only authenticated users can view sessions");

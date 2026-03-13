@@ -89,6 +89,13 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface UserProfile {
+    principal: Principal;
+    co2Faktor: number;
+    registeredAt: Time;
+    waehrung: string;
+    pvName: string;
+}
 export interface PVSession {
     id: string;
     owner: Principal;
@@ -101,6 +108,13 @@ export interface TarifStufe {
     id: string;
     preis: number;
     farbe: string;
+}
+export interface PremiumSession {
+    id: string;
+    owner: Principal;
+    data: string;
+    name: string;
+    timestamp: Time;
 }
 export interface AnalyticsResult {
     id: string;
@@ -132,25 +146,11 @@ export interface WattpilotSession {
     name: string;
     timestamp: Time;
 }
-export interface PremiumSession {
-    id: string;
-    owner: Principal;
-    data: string;
-    name: string;
-    timestamp: Time;
-}
 export interface PremiumSessionMeta {
     id: string;
     owner: Principal;
     name: string;
     timestamp: Time;
-}
-export interface UserProfile {
-    principal: Principal;
-    co2Faktor: number;
-    registeredAt: Time;
-    waehrung: string;
-    pvName: string;
 }
 export enum UserRole {
     admin = "admin",
@@ -160,9 +160,9 @@ export enum UserRole {
 export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     addPVSession(id: string, name: string, data: string): Promise<void>;
+    addPremiumSession(id: string, name: string, data: string): Promise<void>;
     addTarifPeriode(periode: TarifPeriode): Promise<void>;
     addWattpilotSession(id: string, name: string, data: string): Promise<void>;
-    addPremiumSession(id: string, name: string, data: string): Promise<void>;
     appendPremiumSessionData(id: string, chunk: string): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     deleteSession(id: string, sessionType: string): Promise<void>;
@@ -221,6 +221,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async addPremiumSession(arg0: string, arg1: string, arg2: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addPremiumSession(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addPremiumSession(arg0, arg1, arg2);
+            return result;
+        }
+    }
     async addTarifPeriode(arg0: TarifPeriode): Promise<void> {
         if (this.processError) {
             try {
@@ -246,20 +260,6 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.addWattpilotSession(arg0, arg1, arg2);
-            return result;
-        }
-    }
-    async addPremiumSession(arg0: string, arg1: string, arg2: string): Promise<void> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.addPremiumSession(arg0, arg1, arg2);
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.addPremiumSession(arg0, arg1, arg2);
             return result;
         }
     }
@@ -434,14 +434,14 @@ export class Backend implements backendInterface {
     async getPremiumSessionsMeta(): Promise<Array<PremiumSessionMeta>> {
         if (this.processError) {
             try {
-                const result = await (this.actor as any).getPremiumSessionsMeta();
+                const result = await this.actor.getPremiumSessionsMeta();
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await (this.actor as any).getPremiumSessionsMeta();
+            const result = await this.actor.getPremiumSessionsMeta();
             return result;
         }
     }

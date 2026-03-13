@@ -99,7 +99,11 @@ export const idlService = IDL.Service({
   'getPVSampleData' : IDL.Func([], [IDL.Text], ['query']),
   'getPVSessions' : IDL.Func([], [IDL.Vec(PVSession)], ['query']),
   'getPremiumSessions' : IDL.Func([], [IDL.Vec(PremiumSession)], ['query']),
-  'getPremiumSessionsMeta' : IDL.Func([], [IDL.Vec(PremiumSessionMeta)], ['query']),
+  'getPremiumSessionsMeta' : IDL.Func(
+      [],
+      [IDL.Vec(PremiumSessionMeta)],
+      ['query'],
+    ),
   'getSession' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], ['query']),
   'getTarifPerioden' : IDL.Func([], [IDL.Vec(TarifPeriode)], ['query']),
   'getUserProfile' : IDL.Func(
@@ -213,7 +217,11 @@ export const idlFactory = ({ IDL }) => {
     'getPVSampleData' : IDL.Func([], [IDL.Text], ['query']),
     'getPVSessions' : IDL.Func([], [IDL.Vec(PVSession)], ['query']),
     'getPremiumSessions' : IDL.Func([], [IDL.Vec(PremiumSession)], ['query']),
-    'getPremiumSessionsMeta' : IDL.Func([], [IDL.Vec(PremiumSessionMeta)], ['query']),
+    'getPremiumSessionsMeta' : IDL.Func(
+        [],
+        [IDL.Vec(PremiumSessionMeta)],
+        ['query'],
+      ),
     'getSession' : IDL.Func([IDL.Text, IDL.Text], [IDL.Text], ['query']),
     'getTarifPerioden' : IDL.Func([], [IDL.Vec(TarifPeriode)], ['query']),
     'getUserProfile' : IDL.Func(
